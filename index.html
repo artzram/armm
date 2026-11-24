@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ARMM Live · AR4Z Manpower Monitoring</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ARMM">
+<style>
+  :root{
+    --bg:#eef5fb; --card:#fff; --ink:#0b2f4e; --ink2:#4a5d70; --ink3:#93a4b5; --line:#dbe6f0;
+    --brand:#0f75bc; --brand-dk:#0b5c94; --accent:#00aeef; --accent-ink:#ffffff;   /* AR4Z logo colours */
+    --in:#15803d; --in-bg:#dcfce7; --out:#b91c1c; --out-bg:#fee2e2;
+    --otin:#b45309; --otin-bg:#fef3c7; --otout:#334155; --otout-bg:#e2e8f0;
+    --warn:#92400e; --warn-bg:#fef3c7; --err:#991b1b; --err-bg:#fee2e2; --ok:#166534; --ok-bg:#dcfce7;
+    --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  [hidden]{display:none!important}
+  .muted{color:var(--ink2)} .small{font-size:13px} .tiny{font-size:12px;color:var(--ink3)}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* demo bar */
+  #demoBar{position:sticky;top:0;z-index:50;background:#0b2f4e;color:#e5e7eb;padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+  #demoBar b{color:var(--accent)}
+  #demoBar button{background:#374151;border:0;color:#fff;padding:5px 10px;border-radius:999px}
+  #demoBar button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+  #demoBar .hint{margin-left:auto;color:#9ca3af}
+
+  /* ---------- worker phone ---------- */
+  .phone{max-width:460px;margin:0 auto;padding:0 0 32px}
+  .w-head{background:linear-gradient(135deg,var(--brand),var(--brand-dk));color:#fff;padding:14px 16px 54px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .hr{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;border-radius:10px;background:#fff;padding:3px;display:block;flex:none;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .brand{display:flex;gap:8px;align-items:center;font-weight:700;letter-spacing:.2px}
+  .brand i{display:none}
+  .appname{line-height:1.1;min-width:0}
+  .an-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .an-top b{font-size:24px;font-weight:800;letter-spacing:1.5px}
+  .an-top span{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;opacity:.75}
+  .an-sub{font-size:14px;font-weight:600;opacity:.92;margin-top:3px}
+  .login-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;color:var(--brand)}
+  .login-head .an-sub{color:var(--ink)}
+  @media (max-width:420px){.an-top span{display:none}}
+  .clock{text-align:right;line-height:1.15}
+  .clock b{font-size:20px;display:block}
+  .clock span{font-size:12px;color:#cfe9fb}
+  .sheet{margin:-40px 12px 0;background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:18px}
+  .who{display:flex;gap:12px;align-items:center}
+  .avatar{width:52px;height:52px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:19px;flex:none}
+  .who h1{font-size:19px;margin:0;line-height:1.2}
+  .who p{margin:2px 0 0;color:var(--ink2);font-size:14px}
+  .status{margin-top:14px;padding:10px 12px;border-radius:10px;font-weight:600;display:flex;gap:8px;align-items:center}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ink3)}
+  .st-absent{background:#f3f4f6;color:var(--ink2)}
+  .st-onsite{background:var(--in-bg);color:var(--in)} .st-onsite .dot{background:var(--in)}
+  .st-ot{background:var(--otin-bg);color:var(--otin)} .st-ot .dot{background:var(--otin)}
+  .st-done{background:var(--otout-bg);color:var(--otout)} .st-done .dot{background:var(--otout)}
+  .field{display:block;margin-top:14px}
+  .field>span{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+  .field select,.field input{width:100%;padding:13px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:16px}
+  .field select:focus,.field input:focus{outline:none;border-color:var(--ink)}
+  .pin{letter-spacing:6px;font-weight:700;text-align:center}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+  .scan{border:0;border-radius:14px;padding:18px 10px 14px;text-align:center;font-weight:800;font-size:20px;letter-spacing:.5px;position:relative;transition:transform .08s}
+  .scan:active{transform:scale(.97)}
+  .scan small{display:block;font-weight:500;font-size:12px;letter-spacing:0;opacity:.85;margin-top:2px}
+  .scan:disabled{opacity:.5}
+  .t-in{background:var(--in-bg);color:var(--in)} .t-out{background:var(--out-bg);color:var(--out)}
+  .t-otin{background:var(--otin-bg);color:var(--otin)} .t-otout{background:var(--otout-bg);color:var(--otout)}
+  .scan.sugg{box-shadow:0 0 0 3px var(--brand) inset}
+  .scan.sugg.t-in{background:var(--in);color:#fff} .scan.sugg.t-out{background:var(--out);color:#fff}
+  .scan.sugg.t-otin{background:var(--otin);color:#fff} .scan.sugg.t-otout{background:var(--otout);color:#fff}
+  .scan.sugg:before{content:"NEXT";position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:10px;padding:2px 8px;border-radius:999px;letter-spacing:1px}
+  .msg{margin-top:14px;padding:11px 12px;border-radius:10px;font-weight:600;font-size:14px}
+  .msg.err{background:var(--err-bg);color:var(--err)} .msg.warn{background:var(--warn-bg);color:var(--warn)} .msg.ok{background:var(--ok-bg);color:var(--ok)}
+  .log{margin:16px 12px 0;background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px}
+  .log h2{font-size:14px;margin:0 0 8px;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px}
+  .log-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .log-row:first-of-type{border-top:0}
+  .tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;min-width:62px;text-align:center}
+  .log-row .t{font-weight:700;margin-left:auto}
+  .linkbtn{background:none;border:0;color:var(--ink2);text-decoration:underline;padding:0;font-size:13px}
+  .center{text-align:center}
+
+  /* overlay */
+  .overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:24px;background:rgba(17,24,39,.55)}
+  .ov-card{background:#fff;border-radius:20px;max-width:360px;width:100%;padding:28px 22px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+  .ov-ic{width:76px;height:76px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;color:#fff;font-size:40px;font-weight:800}
+  .ov-card h3{margin:0;font-size:24px}
+  .ov-card .big{font-size:34px;font-weight:800;margin:6px 0 2px}
+  .ov-actions{display:flex;gap:10px;margin-top:18px}
+  .ov-actions button{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:700}
+  .ov-actions .primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+  /* picker */
+  .search{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:16px;background:#fff}
+  .plist{margin-top:10px;max-height:60vh;overflow:auto}
+  .pitem{display:flex;gap:10px;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:11px 4px;text-align:left}
+  .pitem .avatar{width:38px;height:38px;font-size:14px;border-radius:10px}
+
+  /* ---------- admin ---------- */
+  .admin{max-width:1240px;margin:0 auto;padding:0 16px 40px}
+  .a-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 0 10px}
+  .a-band{background:linear-gradient(135deg,var(--brand),var(--brand-dk));color:#fff;margin-bottom:14px;box-shadow:0 2px 10px rgba(15,117,188,.25)}
+  .a-band .a-top{max-width:1240px;margin:0 auto;padding:12px 16px}
+  .a-top .brand{font-size:18px}
+  .a-band .tabs{background:rgba(255,255,255,.14);order:3;margin-left:0;flex:0 1 auto;max-width:100%;overflow:auto}
+  .a-band .a-top{flex-wrap:wrap;row-gap:10px}
+  .a-band .uchip{margin-left:auto}
+  .a-band .tabs button{color:#dff2fd}
+  .a-band .tabs button.on{background:#fff;color:var(--brand)}
+  .tabs{display:flex;gap:4px;background:#e5e7eb;padding:4px;border-radius:12px;margin-left:auto}
+  .tabs button{border:0;background:none;padding:7px 14px;border-radius:9px;font-weight:600;color:var(--ink2)}
+  .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 14px}
+  .bar input[type=date],.bar select,.bar .search{padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;width:auto}
+  .bar .search{min-width:200px}
+  .btn{border:1.5px solid var(--line);background:#fff;padding:8px 12px;border-radius:10px;font-weight:600;font-size:14px}
+  .btn:hover{border-color:#cbd5e1}
+  .btn.dark{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.dark:hover{background:var(--brand-dk)}
+  .btn.acc{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .updated{margin-left:auto;font-size:12px;color:var(--ink3)}
+  .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;border:0;text-align:left}
+  .kpi.on{outline:2px solid var(--accent)}
+  .kpi .n{font-size:30px;font-weight:800;line-height:1.1}
+  .kpi .l{font-size:13px;color:var(--ink2);font-weight:600;display:flex;align-items:center;gap:6px}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-top:14px}
+  .feed{max-height:460px;overflow:auto}
+  @media (min-width:1500px){.grid2{grid-template-columns:minmax(0,1fr) 300px}.feed{max-height:none}}
+  .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;min-width:0}
+  .panel h2{font-size:13px;margin:0 0 10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:8px}
+  .sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:14px}
+  .site{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;border-top:4px solid var(--accent)}
+  .site h3{margin:0;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+  .site h3 span{background:var(--brand);color:#fff;border-radius:999px;padding:0 9px;font-size:12px;line-height:20px}
+  .site ul{list-style:none;margin:8px 0 0;padding:0;font-size:13px}
+  .site li{display:flex;align-items:center;gap:7px;padding:3px 0}
+  .site li .tnum{margin-left:auto;color:var(--ink2)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:12px;color:var(--ink2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:8px;border-bottom:1.5px solid var(--line);white-space:nowrap;position:sticky;top:0;background:#fff}
+  td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td.num,th.num{text-align:right}
+  tr:hover td{background:#fafafa}
+  .tbl-wrap{overflow:auto;max-height:70vh}
+  .flag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--warn-bg);color:var(--warn);margin-right:4px}
+  .flag.red{background:var(--err-bg);color:var(--err)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .feed .row{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+  .feed .row:first-child{border-top:0}
+  .feed .row .tag{min-width:54px;font-size:11px}
+  .feed .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .feed .tm{margin-left:auto;color:var(--ink2)}
+  .wk td.d{text-align:center;min-width:64px}
+  .wk .h{font-weight:700}
+  .wk .ot{display:block;font-size:11px;color:var(--otin);font-weight:700}
+  .wk .s{display:block;font-size:10.5px;color:var(--ink3);max-width:90px;overflow:hidden;text-overflow:ellipsis}
+  .wk tfoot td{font-weight:800;border-top:1.5px solid var(--line)}
+  .note{font-size:12.5px;color:var(--ink2);margin-top:10px}
+  .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .badge{background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:14px;text-align:center;border-top:6px solid var(--brand);break-inside:avoid}
+  .badge .qr{width:172px;height:172px;margin:6px auto;display:grid;place-items:center}
+  .badge .qr svg,.badge .qr img{width:172px;height:172px}
+  .badge b{display:block;font-size:15px;line-height:1.2}
+  .badge span{font-size:12px;color:var(--ink2)}
+  .badge{position:relative;overflow:hidden}
+  .badge>*{position:relative;z-index:1}
+  .badge>.bgl{position:absolute;z-index:0;left:50%;top:50%;width:88%;height:auto;transform:translate(-50%,-46%);opacity:.2;pointer-events:none}
+  .badge .co b{color:var(--brand);letter-spacing:1px;display:inline;font-size:11px}
+  .badge .blogo{width:26px;height:26px;display:inline-block;vertical-align:middle;margin-right:6px;padding:0;box-shadow:none}
+  .badge .co{font-size:10px;letter-spacing:1px;color:var(--ink3);text-transform:uppercase;margin-top:6px}
+  .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+  .bigpin{font-size:44px;font-weight:800;letter-spacing:10px;margin:4px 0 10px}
+  .linkrow{display:flex;gap:8px;align-items:center;margin:8px 0}
+  .linkrow code{flex:1;background:#f3f4f6;border-radius:8px;padding:8px 10px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pay td.d{min-width:92px;cursor:pointer}
+  .pay td.d:hover{background:#fffbeb}
+  .pay .pp{display:block;font-size:12px;color:var(--ink2)}
+  .pay td.adj{cursor:pointer}
+  .pay-title{font-size:20px;margin:0 0 12px}
+  .sitecost div{display:grid;grid-template-columns:200px 1fr;gap:4px 12px;align-items:center;padding:5px 0;position:relative}
+  .sitecost span{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sitecost b{font-size:13px;grid-column:2;grid-row:1;justify-self:end;z-index:1}
+  .sitecost i{grid-column:2;grid-row:1;height:22px;background:var(--otin-bg);border-radius:6px;display:block}
+  .print-only{display:none}
+  .sq-wrap{display:flex;gap:14px;align-items:center}
+  .sq{width:130px;height:130px;flex:none;background:#fff;border-radius:10px;padding:4px}
+  .sq svg{width:122px;height:122px}
+  .poster{position:fixed;inset:0;z-index:95;background:#fff;overflow:auto;display:flex;justify-content:center;padding:30px}
+  .pst-in{max-width:560px;width:100%;text-align:center}
+  .pst-head{display:flex;gap:14px;align-items:center;justify-content:center;color:var(--brand)}
+  .pst-head .logo{width:64px;height:64px}
+  .pst-t{font-size:40px;font-weight:800;letter-spacing:3px;line-height:1}
+  .pst-s{font-size:13px;letter-spacing:1.5px;text-transform:uppercase}
+  .poster h1{font-size:28px;margin:26px 0 10px}
+  .pst-qr{width:300px;height:300px;margin:0 auto}
+  .pst-qr svg{width:300px;height:300px}
+  .poster ol{text-align:left;font-size:18px;line-height:1.6;max-width:440px;margin:16px auto}
+  .pst-l{font-size:12px;color:var(--ink2);word-break:break-all}
+  .scanbox{position:relative;background:#0b2f4e;border-radius:14px;overflow:hidden;aspect-ratio:1/1;max-height:62vh;margin:0 auto}
+  .scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+  .scanbox .frame{position:absolute;inset:16%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 999px rgba(11,47,78,.35)}
+  .scanbox .scanmsg{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#fff;font-size:13px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .scanbtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+  .scanbtns .btn{cursor:pointer}
+  .scanbig{display:block;width:100%;text-align:center;font-size:18px;padding:16px;border-radius:14px;cursor:pointer}
+  .scanbox.idle video,.scanbox.idle .frame{display:none}
+  .scanbox .scanidle{display:none}
+  .scanbox.idle .scanidle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;position:absolute;inset:0;color:#dff2fd;text-align:center;padding:24px;font-size:14px;line-height:1.4}
+  .scanidle .qrico{font-size:56px;line-height:1;color:#fff}
+  .scanidle .shotprev{max-width:70%;max-height:55%;border-radius:10px;opacity:.85;object-fit:contain}
+  .demo-badges{margin-top:12px;padding:10px;border:1.5px dashed var(--line);border-radius:12px;display:flex;flex-wrap:wrap;gap:6px}
+  .demo-badges p{width:100%;margin:0}
+  .btn.danger{color:var(--out);border-color:#f3c4c4}
+  .btn.danger:hover{background:var(--err-bg)}
+  .arch{border-left:4px solid var(--otin)}
+  .mgrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;align-items:start}
+  .mgrid .panel h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:1000px){.mgrid{grid-template-columns:1fr}}
+  .kpi.alert{box-shadow:0 0 0 2px var(--out) inset,var(--shadow)}
+  button.kpi{cursor:pointer;font:inherit;color:inherit}
+  button.kpi:hover{background:#f6fbff}
+  .pay td.d.needs{box-shadow:inset 0 0 0 2px #f59e0b}
+  .appr{border-left:4px solid var(--out)}
+  /* frozen name column: stays visible while scrolling sideways */
+  .frz .stk{position:sticky;left:0;z-index:2;background:#fff}
+  .frz thead .stk{z-index:4}
+  .frz .stk2{left:38px}
+  .frz .stkn{width:38px;min-width:38px;max-width:38px}
+  .frz .split{box-shadow:inset -2px 0 0 var(--brand),6px 0 8px -4px rgba(11,47,78,.18);min-width:170px}
+  .frz tfoot .stk{background:#f6f9fc}
+  .frz tr:hover td.stk{background:#f4f8fc}
+  .print-logo{display:none!important}
+  .print-only-block{display:none}
+  .uchip{display:flex;align-items:center;gap:10px;color:#fff;font-size:13px;white-space:nowrap}
+  .uchip span{display:flex;flex-direction:column;line-height:1.15;text-align:right;font-weight:600}
+  .uchip small{font-weight:500;opacity:.75;font-size:11px}
+  .uchip .linkbtn{color:#dff2fd;font-size:12px}
+  .uchip .uact{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+  .chk{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:14px;background:#f6f9fc;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px}
+  .chk label,.chk1{display:flex;gap:8px;align-items:center}
+  .chk1{margin-top:12px;font-size:14px}
+  .site-sum h2{display:flex;align-items:center}
+  .site-sum .subrow td{font-size:12.5px;color:var(--ink2);border-bottom:1px dashed var(--line);padding-left:22px}
+  .site-sum tfoot td{font-weight:800;border-top:1.5px solid var(--line)}
+  .site-sum td.num,.site-sum th.num{width:140px}
+  .c-sat{background:#eef4fd} .c-sun{background:#fdeeee} .c-wd{background:#eef8f1}
+  th.c-sat{background:#d9e7fb;color:#1e3a8a} th.c-sun{background:#fadada;color:#991b1b} th.c-wd{background:#d8f0df;color:#166534}
+  tr:hover td.c-sat{background:#e3edfc} tr:hover td.c-sun{background:#fbe3e3} tr:hover td.c-wd{background:#e2f4e8}
+  .pay td.d.c-sat:hover,.pay td.d.c-sun:hover,.pay td.d.c-wd:hover{background:#fff7d6}
+  th.dh{text-align:center;line-height:1.15;padding:7px 6px}
+  th.dh b{display:block;font-size:13px;letter-spacing:.6px}
+  th.dh span{display:block;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;opacity:.8;margin-top:2px}
+  .login{max-width:360px;margin:12vh auto 0;padding:0 16px}
+  .loading{padding:60px 20px;text-align:center;color:var(--ink2)}
+  .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;margin:0 auto 10px;animation:sp 0.8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:90}
+
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid2{grid-template-columns:1fr}
+    .tabs{margin-left:0;width:100%;overflow:auto}
+  }
+  @media print{
+    body{background:#fff}
+    #demoBar,.a-band,.bar,.noprint,.toast{display:none!important}
+    body:has(.poster) #app{display:none}
+    .poster{position:static;padding:0}
+    .print-only-block{display:flex!important}
+    .sign-block{gap:40px;margin-top:40px}
+    .sign-block div{flex:1;text-align:center;font-size:11px}
+    .sign-block span{display:block;border-bottom:1px solid #000;height:30px;margin-bottom:4px}
+    table.pay{font-size:11px}
+    table.pay td{height:34px}
+    table.pay td.sig{min-width:170px;border-bottom:1px solid #999}
+    .site-sum{page-break-inside:avoid}
+    .site-sum h2{font-size:13px}
+    .site-sum .subrow td{font-size:10px}
+    .pay-title .print-logo{display:inline-block!important;width:40px;height:40px;vertical-align:middle;margin-right:8px;box-shadow:none}
+    .badges{grid-template-columns:repeat(3,1fr)}
+    .badge{box-shadow:none;border:1px solid #ddd}
+    .badge>.bgl{opacity:.2}
+    .print-only{display:table-cell}
+    td.sig{min-width:110px}
+    .panel{box-shadow:none;padding:0}
+    .tbl-wrap{max-height:none;overflow:visible}
+    table{font-size:10px} td,th{padding:4px}
+    th{position:static}
+    .frz .stk{position:static;box-shadow:none!important}
+    @page{size:landscape;margin:10mm}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div id="demoBar" hidden>
+  <b>Preview · sample data</b>
+  <button data-demo="scan">Scanner</button>
+  <button data-demo="worker">After a scan</button>
+  <button data-demo="outside">Phone camera (no app)</button>
+  <button data-demo="admin">Supervisor dashboard</button>
+  <span class="hint">Sign in: <b>admin</b> / admin123 · <b>encoder</b> / site123</span>
+</div>
+<div id="app"></div>
+
+<script>
+  // ▼ ARMM Live: paste your Apps Script web app link here (Deploy → Manage deployments → Web app URL, ends in /exec)
+  window.ARMM_REMOTE_URL = 'https://script.google.com/macros/s/AKfycbzY9ao6rTn1F8Q-AyYe-rahoHNXSn6c4iX0vY6wm8nimdPa_wBLmeD_PFXoczw7szC1rg/exec';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+/* ===================== bootstrap ===================== */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Stand-alone page (e.g. GitHub Pages): window.ARMM_REMOTE_URL = your /exec link. Talks to the sheet over the internet,
+// outside Google's frame, so the live camera works on iPhones.
+const REMOTE = String(window.ARMM_REMOTE_URL || '').trim();
+let BOOT = null;
+try { BOOT = JSON.parse(document.getElementById('boot').textContent); } catch (e) {}
+const DEMO = !REMOTE && (!BOOT || typeof google === 'undefined' || !google.script);
+if (REMOTE) {
+  const q = {}; new URLSearchParams(location.search).forEach((v, k) => { q[k] = v; });
+  BOOT = { params: q, appUrl: REMOTE, config: { types: ['IN','OUT','OT-IN','OT-OUT'], lateAfter: '08:00', weekStart: 6, saveGps: false } };
+}
+if (!BOOT) BOOT = { params: {}, appUrl: 'https://script.google.com/macros/s/YOUR-DEPLOYMENT-ID/exec',
+  config: { types: ['IN','OUT','OT-IN','OT-OUT'], lateAfter: '08:00', weekStart: 6, saveGps: false } };
+if (!BOOT.config.roles) BOOT.config.roles = ['Admin', 'Encoder'];
+if (BOOT.config.allowNameSearch == null) BOOT.config.allowNameSearch = true;
+if (!BOOT.config.pay) BOOT.config.pay = { ROUND_HOURS_TO: 0.25, FULL_DAY_HOURS: 8, HOURS_PER_DAY: 8, LUNCH_START: '12:00', LUNCH_END: '13:00', POSSIBLE_OT_AFTER: 10.5 };
+if (BOOT.config.pay.POSSIBLE_OT_AFTER == null) BOOT.config.pay.POSSIBLE_OT_AFTER = 10.5;
+const CFG = BOOT.config;
+
+function api(fn, ...args) {
+  if (REMOTE) {
+    return fetch(REMOTE, { method: 'POST', body: JSON.stringify({ fn, args }) })   // text/plain: no CORS pre-check needed
+      .catch(() => { throw new Error('No connection to ARMM. Check the internet and try again.'); })
+      .then(r => r.json())
+      .then(j => { if (!j.ok) throw new Error(j.error); return j.result; });
+  }
+  if (DEMO) return new Promise((res, rej) => setTimeout(() => { try { res(Demo[fn](...args)); } catch (e) { rej(e); } }, 300));
+  return new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args));
+}
+const errMsg = e => String(e && e.message ? e.message : e).replace(/^(Exception|Error):\s*/, '');
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  sget(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+  sset(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+};
+
+/* ===================== sign-in ===================== */
+const S = { token: store.get('armm_token') || '', user: null, mode: '' };
+function setSession(token, user) { S.token = token || ''; S.user = user || null; store.set('armm_token', S.token); }
+/** Calls the server with the saved sign-in. If the sign-in is missing or expired, shows the sign-in screen. */
+async function call(fn, ...args) {
+  try {
+    const r = await api(fn, S.token, ...args);
+    if (r && r.user) S.user = r.user;
+    return r;
+  } catch (e) {
+    const m = errMsg(e);
+    if (/^SIGNIN:/.test(m)) { setSession('', null); clearInterval(A.timer); showLogin(m.replace(/^SIGNIN:\s*/, '')); return new Promise(() => {}); }
+    throw e;
+  }
+}
+function signOut() { setSession('', null); clearInterval(A.timer); showLogin(); }
+function showLogin(msg) {
+  const admin = S.mode === 'admin';
+  $('#app').innerHTML = '<div class="login"><div class="login-head">' + appBrand(admin ? 'Attendance Dashboard' : 'Site Attendance') + logoImg() + '</div>' +
+    '<form class="panel" id="lf"><h2 style="margin-bottom:4px">Sign in</h2><p class="small muted" style="margin:0 0 6px">' +
+    (admin ? 'Sign in with your Admin or Encoder account.' : 'Sign in once on this phone to record attendance.') + '</p>' +
+    '<label class="field"><span>Username</span><input id="lu" autocomplete="username" autocapitalize="none" spellcheck="false"></label>' +
+    '<label class="field"><span>Password</span><input id="lp" type="password" autocomplete="current-password"></label>' +
+    (msg ? '<div class="msg err">' + esc(msg) + '</div>' : '') +
+    '<button class="btn dark" id="lb" style="width:100%;margin-top:14px;padding:12px">Sign in</button>' +
+    '<p class="tiny center" style="margin:12px 0 0">No account yet, or forgot your password? An Admin can reset it in <b>Users &amp; settings</b>. The sheet owner can also use the <b>ARMM → Add or reset a user</b> menu in the Google Sheet.</p></form></div>';
+  $('#lu').focus();
+  $('#lf').onsubmit = async e => {
+    e.preventDefault();
+    const b = $('#lb'); b.disabled = true; b.textContent = 'Signing in…';
+    try {
+      const r = await api('login', $('#lu').value.trim(), $('#lp').value);
+      setSession(r.token, r.user);
+      route(S.mode);
+    } catch (err) { showLogin(errMsg(err)); }
+  };
+}
+const userChip = () => S.user ? '<div class="uchip"><span>' + esc(S.user.name) + '<small>' + esc(S.user.role) + '</small></span><span class="uact"><button class="linkbtn" id="myPwTop">Change password</button><button class="linkbtn" id="signOut">Sign out</button></span></div>' : '';
+/** Wires the "Change password" / "Sign out" links wherever they appear. */
+function wireAccount() {
+  const so = $('#signOut'); if (so) so.onclick = signOut;
+  const cp = $('#myPwTop'); if (cp) cp.onclick = changeMyPassword;
+}
+
+const LOGO = 'data:image/png;base64,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';
+/** App name (top left) with the screen title underneath. */
+const appBrand = title => '<div class="appname" title="AR4Z Manpower Monitoring"><div class="an-top"><b>ARMM</b><span>AR4Z Manpower Monitoring</span></div><div class="an-sub">' + esc(title) + '</div></div>';
+const logoImg = cls => '<img class="logo' + (cls ? ' ' + cls : '') + '" src="' + LOGO + '" alt="AR4Z">';
+
+/* ===================== helpers ===================== */
+const TYPE = {
+  'IN':     { cls: 't-in',    sub: 'Start of work' },
+  'OUT':    { cls: 't-out',   sub: 'End of work' },
+  'OT-IN':  { cls: 't-otin',  sub: 'Start overtime' },
+  'OT-OUT': { cls: 't-otout', sub: 'End overtime' }
+};
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parseYmd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const fmtDay = (s, o) => parseYmd(s).toLocaleDateString('en-US', o || { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtH = h => h > 0.004 ? String(Math.round(h * 100) / 100) : '–';
+const to12 = t => { if (!t) return ''; const [h, m] = t.split(':').map(Number); return ((h % 12) || 12) + ':' + pad(m) + ' ' + (h < 12 ? 'AM' : 'PM'); };
+const initials = n => String(n).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const norm = s => String(s || '').trim().replace(/\s+/g, ' ').toUpperCase();
+const weekStartOf = d => addDays(d, -((d.getDay() - CFG.weekStart + 7) % 7));
+function toast(t) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), 2200); }
+function loading(t) { $('#app').innerHTML = '<div class="loading"><div class="spin"></div>' + esc(t || 'Loading…') + '</div>'; }
+function copy(text) {
+  const done = () => toast('Copied');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => fallback());
+  else fallback();
+  function fallback() { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} ta.remove(); }
+}
+function modal(html) {
+  const ov = document.createElement('div'); ov.className = 'overlay'; ov.innerHTML = '<div class="ov-card">' + html + '</div>';
+  document.body.appendChild(ov); return ov;
+}
+function confirmBox(title, text, okLabel) {
+  return new Promise(res => {
+    const ov = modal('<h3 style="font-size:20px">' + esc(title) + '</h3><p class="muted">' + esc(text) + '</p>' +
+      '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">' + esc(okLabel || 'Yes') + '</button></div>');
+    ov.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ov.remove(); res(b.dataset.a === '1'); } });
+  });
+}
+
+/** Turns one worker's scans for one day into times, hours, status and flags. */
+function summarize(recs, isPast) {
+  const s = { in: null, out: null, otIn: null, otOut: null, reg: 0, ot: 0, sites: [], flags: [], state: 'absent', last: null };
+  let openReg = null, openOt = null;
+  for (const r of recs) {
+    if (r.site && s.sites.indexOf(r.site) < 0) s.sites.push(r.site);
+    s.last = r;
+    if (r.type === 'IN') { if (!openReg) { openReg = r; if (!s.in) s.in = r; } }
+    else if (r.type === 'OUT') {
+      if (openReg) { s.reg += r.ts - openReg.ts; openReg = null; } else if (!s.in) s.flags.push('OUT without IN');
+      s.out = r;
+    } else if (r.type === 'OT-IN') {
+      if (openReg) { s.reg += r.ts - openReg.ts; openReg = null; s.flags.push('No OUT before OT'); }
+      if (!openOt) { openOt = r; if (!s.otIn) s.otIn = r; }
+    } else if (r.type === 'OT-OUT') {
+      if (openOt) { s.ot += r.ts - openOt.ts; openOt = null; } else s.flags.push('OT-OUT without OT-IN');
+      s.otOut = r;
+    }
+  }
+  s.reg /= 36e5; s.ot /= 36e5;
+  if (isPast) {
+    if (openReg) s.flags.push('No OUT');
+    if (openOt) s.flags.push('No OT-OUT');
+    s.state = recs.length ? 'done' : 'absent';
+  } else {
+    s.state = openOt ? 'ot' : openReg ? 'onsite' : recs.length ? 'done' : 'absent';
+  }
+  if (s.in && s.in.time > CFG.lateAfter) s.flags.push('Late');
+  s.site = s.last ? s.last.site : '';
+  return s;
+}
+function groupRecords(records) {
+  const m = {};
+  for (const r of records) { const k = norm(r.name) + '|' + r.day; (m[k] = m[k] || []).push(r); }
+  return m;
+}
+/** Day-column colour: Saturday blue, Sunday red, weekdays green. */
+const dayCls = d => { const w = parseYmd(d).getDay(); return w === 6 ? 'c-sat' : w === 0 ? 'c-sun' : 'c-wd'; };
+const dayTh = d => '<th class="dh ' + dayCls(d) + '"><b>' + esc(parseYmd(d).toLocaleDateString('en-US', { weekday: 'short' })) + '</b><span>' +
+  esc(parseYmd(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + '</span></th>';
+const STATE_LABEL = { absent: 'Not in', onsite: 'On site', ot: 'On OT', done: 'Checked out' };
+
+/* ===================== WORKER PAGE ===================== */
+let W = null;
+async function showWorker(name, badge) {
+  loading('Loading worker…');
+  try {
+    const d = await call('getWorkerData', name || '', badge || '');
+    if (d.error || !d.worker) {
+      $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Site Attendance') + '' + logoImg() + '</div>' +
+        '<div class="sheet"><div class="msg err">' + esc(d.error || 'Name not found') + '</div>' +
+        '<p class="center"><button class="btn dark" id="toScan">Scan again</button></p></div></div>';
+      $('#toScan').onclick = () => showScanner();
+      return;
+    }
+    const savedSite = store.get('att_site');
+    W = {
+      d, name: d.worker.name, records: d.todayRecords || [],
+      site: d.sites.indexOf(d.lastSite) >= 0 ? d.lastSite : (d.sites.indexOf(savedSite) >= 0 ? savedSite : (d.sites.length === 1 ? d.sites[0] : '')),
+      busy: false, msg: null
+    };
+    renderWorker();
+  } catch (e) {
+    $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Site Attendance') + logoImg() + '</div><div class="sheet"><div class="msg err">' + esc(errMsg(e)) + '</div>' +
+      '<p class="center"><button class="btn dark" id="toScan">Scan again</button></p></div></div>';
+    $('#toScan').onclick = () => showScanner();
+  }
+}
+function suggestedType(recs) {
+  if (!recs.length) return 'IN';
+  return { 'IN': 'OUT', 'OT-IN': 'OT-OUT' }[recs[recs.length - 1].type] || null;
+}
+function renderWorker() {
+  const d = W.d, s = summarize(W.records, false), sug = suggestedType(W.records);
+  const stText = {
+    absent: 'Not timed in yet today',
+    onsite: 'On site since ' + (s.in ? s.in.time12 || to12(s.in.time) : ''),
+    ot: 'On overtime since ' + (s.otIn ? s.otIn.time12 || to12(s.otIn.time) : ''),
+    done: 'Done for today' + (s.last ? ' · last scan ' + (s.last.time12 || to12(s.last.time)) : '')
+  }[s.state];
+  const logRows = W.records.slice().reverse().map(r =>
+    '<div class="log-row"><span class="tag ' + TYPE[r.type].cls + '">' + esc(r.type) + '</span><span class="small muted">' + esc(r.site) + '</span><span class="t tnum">' + esc(r.time12 || to12(r.time)) + '</span></div>').join('');
+  $('#app').innerHTML =
+    '<div class="phone">' +
+      '<div class="w-head">' + appBrand('Site Attendance') + '<div class="hr"><div class="clock"><b class="tnum" id="clk"></b><span id="clkd"></span></div>' + logoImg() + '</div></div>' +
+      '<div class="sheet">' +
+        '<div class="tiny" style="margin-bottom:8px">Recording attendance for</div><div class="who"><div class="avatar">' + esc(initials(W.name)) + '</div><div><h1>' + esc(W.name) + '</h1><p>' + esc(d.worker.designation || 'Worker') + '</p></div></div>' +
+        '<div class="status st-' + s.state + '"><span class="dot"></span>' + esc(stText) + '</div>' +
+        '<label class="field"><span>Construction site</span><select id="site"><option value="">Choose site…</option>' +
+          d.sites.map(x => '<option' + (x === W.site ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
+        '<div class="btns">' + CFG.types.map(t =>
+          '<button class="scan ' + TYPE[t].cls + (t === sug ? ' sugg' : '') + '" data-type="' + t + '"' + (W.busy ? ' disabled' : '') + '>' + t + '<small>' + TYPE[t].sub + '</small></button>').join('') + '</div>' +
+        (W.msg ? '<div class="msg ' + W.msg.k + '">' + esc(W.msg.t) + '</div>' : '') +
+      '</div>' +
+      '<div class="log"><h2>Today · ' + esc(fmtDay(d.today)) + '</h2>' + (logRows || '<div class="small muted">No scans yet today.</div>') + '</div>' +
+      '<p class="center" style="margin-top:14px"><button class="btn dark" id="scanNext" style="padding:12px 18px">📷 Scan next worker</button></p>' +
+      '<p class="center tiny">Recording as <b>' + esc(S.user ? S.user.name : '') + '</b> · <button class="linkbtn" id="myPwTop">Change password</button> · <button class="linkbtn" id="signOut">Sign out</button></p>' +
+    '</div>';
+  $('#site').onchange = e => { W.site = e.target.value; };
+  wireAccount();
+  $$('.scan').forEach(b => b.onclick = () => doScan(b.dataset.type, sug, s));
+  $('#scanNext').onclick = () => showScanner();
+  tickClock();
+}
+function tickClock() {
+  const c = $('#clk'); if (!c) return;
+  const n = new Date();
+  c.textContent = n.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  $('#clkd').textContent = n.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' });
+}
+setInterval(tickClock, 15000);
+
+function getGps() {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res({});
+    navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+      () => res({}), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  });
+}
+async function doScan(type, sug, s) {
+  W.msg = null;
+  if (!W.site) { W.msg = { k: 'err', t: 'Choose the construction site first.' }; return renderWorker(); }
+  if (sug && type !== sug) {
+    const why = s.state === 'onsite' ? W.name + ' is already timed in.' : s.state === 'ot' ? W.name + ' is on overtime.' : W.name + ' has not timed in yet.';
+    const ok = await confirmBox('Record ' + type + '?', why + ' The usual next step is ' + sug + '.', 'Yes, record ' + type);
+    if (!ok) return;
+  }
+  W.busy = true; renderWorker();
+  try {
+    const gps = CFG.saveGps ? await getGps() : {};
+    const r = await call('submitAttendance', Object.assign({ name: W.name, type, site: W.site }, gps));
+    if (!r.ok) { W.msg = { k: 'warn', t: r.message }; }
+    else {
+      W.records.push(r.record);
+      store.set('att_site', W.site);
+      const colors = { 'IN': 'var(--in)', 'OUT': 'var(--out)', 'OT-IN': 'var(--otin)', 'OT-OUT': 'var(--otout)' };
+      const ov = modal('<div class="ov-ic" style="background:' + colors[type] + '">✓</div><h3>' + esc(type) + ' recorded</h3>' +
+        '<div class="big tnum">' + esc(r.record.time12) + '</div><div class="muted">' + esc(W.name) + '<br>' + esc(r.record.site) + '</div>' +
+        '<div class="ov-actions"><button data-a="stay">Stay</button><button class="primary" data-a="next">Scan next worker</button></div>');
+      let done = false;
+      const close = next => { if (done) return; done = true; ov.remove(); if (next) showScanner(); };
+      ov.onclick = e => { const b = e.target.closest('button'); close(!b || b.dataset.a !== 'stay'); };
+      setTimeout(() => close(true), 4000);   // goes back to the scanner by itself
+    }
+  } catch (e) { W.msg = { k: 'err', t: errMsg(e) }; }
+  W.busy = false; renderWorker();
+}
+
+/* ===================== QR SCANNER (inside the app) ===================== */
+const SC = { stream: null, timer: null, detector: null, busy: false };
+function stopScanner() {
+  clearInterval(SC.timer); SC.timer = null;
+  if (SC.stream) { SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; }
+}
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    s.onload = () => res(); s.onerror = () => rej(new Error('QR reader could not load. Check the internet connection.'));
+    document.head.appendChild(s);
+  });
+}
+/** Reads a QR from a video frame, canvas or image. Uses the phone's built-in reader when there is one. */
+async function decodeQR(src, w, h) {
+  if ('BarcodeDetector' in window) {
+    try {
+      SC.detector = SC.detector || new BarcodeDetector({ formats: ['qr_code'] });
+      const r = await SC.detector.detect(src);
+      if (r && r.length) return r[0].rawValue;
+      return null;
+    } catch (e) { /* fall back to jsQR */ }
+  }
+  await loadJsQR();
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(src, 0, 0, w, h);
+  const img = g.getImageData(0, 0, w, h);
+  const code = window.jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+  return code ? code.data : null;
+}
+function loadZXing() {
+  if (window.ZXing) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload = () => res(); s.onerror = () => rej(new Error('QR reader could not load. Check the internet connection.'));
+    document.head.appendChild(s);
+  });
+}
+/** Draws part of an image (sx,sy,sw,sh) scaled so its longest side is `size`. Returns {data,w,h,gray()} */
+function grab(img, sx, sy, sw, sh, size) {
+  const k = Math.min(1, size / Math.max(sw, sh));
+  const w = Math.max(1, Math.round(sw * k)), hh = Math.max(1, Math.round(sh * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = hh;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, sx, sy, sw, sh, 0, 0, w, hh);
+  const d = g.getImageData(0, 0, w, hh);
+  return { data: d.data, w, h: hh, canvas: c };
+}
+function toGray(f) {
+  const n = f.w * f.h, out = new Uint8ClampedArray(n), d = f.data;
+  for (let i = 0, j = 0; i < n; i++, j += 4) out[i] = (d[j] * 299 + d[j + 1] * 587 + d[j + 2] * 114) / 1000;
+  return out;
+}
+/**
+ * Reads a QR from a phone photo. Tries the phone's own reader, then jsQR at several sizes and
+ * zoomed into the middle, then the stronger ZXing reader. Returns the text or null.
+ */
+async function decodePhoto(img, onStep) {
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  if ('BarcodeDetector' in window) {
+    try { const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(img); if (r && r.length) return r[0].rawValue; } catch (e) {}
+  }
+  const regions = [[0, 0, W, H]];
+  [0.7, 0.5, 0.35].forEach(f => regions.push([W * (1 - f) / 2, H * (1 - f) / 2, W * f, H * f]));   // zoom into the middle
+  const sizes = [1600, 1100, 800];
+  try {
+    await loadJsQR();
+    if (onStep) onStep('Reading the QR…');
+    for (const rg of regions) for (const s of sizes) {
+      const f = grab(img, rg[0], rg[1], rg[2], rg[3], s);
+      const c = window.jsQR(f.data, f.w, f.h, { inversionAttempts: 'attemptBoth' });
+      if (c && c.data) return c.data;
+      await new Promise(r => setTimeout(r, 0));   // keep the screen responsive
+    }
+  } catch (e) {}
+  try {
+    await loadZXing();
+    if (onStep) onStep('Looking harder…');
+    const Z = window.ZXing, hints = new Map();
+    hints.set(Z.DecodeHintType.TRY_HARDER, true);
+    hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.QR_CODE]);
+    const reader = new Z.QRCodeReader();
+    for (const rg of regions) for (const s of [1400, 900]) {
+      const f = grab(img, rg[0], rg[1], rg[2], rg[3], s);
+      for (const Bin of [Z.HybridBinarizer, Z.GlobalHistogramBinarizer]) {
+        try {
+          const src = new Z.RGBLuminanceSource(toGray(f), f.w, f.h);
+          const res = reader.decode(new Z.BinaryBitmap(new Bin(src)), hints);
+          if (res) return res.getText();
+        } catch (e) {}
+      }
+      await new Promise(r => setTimeout(r, 0));
+    }
+  } catch (e) {}
+  return null;
+}
+function onScanned(text) {
+  if (SC.busy) return;
+  SC.busy = true;
+  if (navigator.vibrate) try { navigator.vibrate(80); } catch (e) {}
+  stopScanner();
+  const t = String(text || '');
+  if (!/[?&]badge=|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{12}$/.test(t)) {
+    SC.busy = false;
+    return showScanner(/[?&]name=/.test(t) ? 'This is an old QR badge. Print a new badge from the QR badges tab.' : 'That QR code is not an ARMM worker badge.');
+  }
+  SC.busy = false;
+  showWorker('', t);
+}
+async function showScanner(msg) {
+  stopScanner();
+  const photoMode = store.get('armm_photo_scan') === '1';   // set after the live camera failed on this phone
+  $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Scan worker QR') + '<div class="hr"><div class="clock"><b class="tnum" id="clk"></b><span id="clkd"></span></div>' + logoImg() + '</div></div>' +
+    '<div class="sheet">' +
+    '<div class="scanbox idle" id="scanBox"><video id="cam" playsinline muted></video><div class="frame"></div>' +
+      '<div class="scanidle" id="scanIdle"><div class="qrico">▣</div><div>Tap <b>Scan QR</b> and point the camera at the worker\'s ARMM badge.</div></div>' +
+      '<div class="scanmsg" id="scanMsg"></div></div>' +
+    (msg ? '<div class="msg err">' + esc(msg) + '</div>' : '') +
+    '<div id="scanMain" style="margin-top:12px">' + scanButton(photoMode) + '</div>' +
+    (CFG.scannerUrl && !REMOTE && photoMode ? '<p class="center small" style="margin:10px 0 0">Want the live camera? <a href="' + esc(CFG.scannerUrl) + '" target="_top"><b>Open ARMM Live</b></a></p>' : '') +
+    '<div class="scanbtns">' +
+      (photoMode ? '<button class="btn" id="tryLive">Try live camera</button>' : '<label class="btn" id="altShot"><input type="file" accept="image/*" capture="environment" hidden class="shot">📸 Take photo instead</label>') +
+      (CFG.allowNameSearch ? '<button class="btn" id="byName">🔎 Search by name</button>' : '') + '</div>' +
+    (DEMO ? '<div class="demo-badges"><p class="tiny">Preview only: tap a sample badge to simulate a scan</p>' +
+      ['Ramon Villanueva', 'Joel Bautista', 'Arnel Santos'].map(n => '<button class="btn" data-sim="' + esc(n) + '">' + esc(n) + '</button>').join('') +
+      '<button class="btn" data-simbad="1">Phone-camera link (old)</button></div>' : '') +
+    '</div><p class="center tiny" style="margin-top:14px">Recording as <b>' + esc(S.user ? S.user.name : '') + '</b> · <button class="linkbtn" id="myPwTop">Change password</button> · <button class="linkbtn" id="signOut">Sign out</button></p></div>';
+  wireAccount(); tickClock();
+  const so = $('#signOut'); if (so) so.onclick = () => { stopScanner(); signOut(); };
+  if ($('#byName')) $('#byName').onclick = () => { stopScanner(); showPicker(); };
+  if ($('#tryLive')) $('#tryLive').onclick = () => { store.set('armm_photo_scan', ''); showScanner(); setTimeout(() => $('#scanStart') && $('#scanStart').click(), 50); };
+  $$('[data-sim]').forEach(b => b.onclick = () => onScanned(BOOT.appUrl + '?badge=demo.' + encodeURIComponent(b.dataset.sim)));
+  $$('[data-simbad]').forEach(b => b.onclick = () => onScanned(BOOT.appUrl + '?name=Ramon%20Villanueva'));
+  wireScanControls();
+}
+/** Big main button: "Scan QR" (live camera) or, if the live camera can't be used on this phone, "Scan QR" that opens the camera app. */
+function scanButton(photoMode) {
+  return photoMode
+    ? '<label class="btn dark scanbig"><input type="file" accept="image/*" capture="environment" hidden class="shot">📷 Scan QR</label><p class="tiny center" style="margin:6px 0 0">Opens the camera. Take a clear photo of the badge.</p>'
+    : '<button class="btn dark scanbig" id="scanStart">📷 Scan QR</button>';
+}
+function wireScanControls() {
+  if ($('#scanStart')) $('#scanStart').onclick = startLiveScan;
+  $$('.shot').forEach(inp => inp.onchange = onPhotoPicked);
+}
+async function onPhotoPicked(e) {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const box = $('#scanBox'), msgEl = $('#scanMsg');
+  const url = URL.createObjectURL(f);
+  box.classList.add('idle');
+  $('#scanIdle').innerHTML = '<img class="shotprev" src="' + url + '" alt=""><div id="shotStep">Reading the QR…</div>';
+  msgEl.textContent = '';
+  try {
+    const img = new Image(); img.src = url;
+    await img.decode();
+    const text = await decodePhoto(img, t => { const s = $('#shotStep'); if (s) s.textContent = t; });
+    if (text) onScanned(text);
+    else {
+      $('#scanIdle').innerHTML = '<img class="shotprev" src="' + url + '" alt=""><div><b>No QR found in this photo.</b><br>' +
+        'Hold the phone 15–25 cm from the badge, so the QR fills about half the photo. Keep it steady, avoid glare, and use a printed badge from the new QR badges tab.</div>';
+    }
+  } catch (err) { $('#scanIdle').innerHTML = '<div class="qrico">⚠</div><div>' + esc(errMsg(err)) + '</div>'; }
+  e.target.value = '';
+}
+/** Starts the live camera. Called from a tap, which phones need before they allow the camera. */
+async function startLiveScan() {
+  const v = $('#cam'), box = $('#scanBox'), msgEl = $('#scanMsg');
+  box.classList.remove('idle'); msgEl.textContent = 'Starting camera…';
+  $('#scanMain').innerHTML = '<button class="btn scanbig" id="scanStop">■ Stop</button>';
+  $('#scanStop').onclick = () => { stopScanner(); box.classList.add('idle'); msgEl.textContent = ''; $('#scanMain').innerHTML = scanButton(false); wireScanControls(); };
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('This browser has no live camera support.'), { name: 'NoSupport' });
+    SC.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    if (!$('#cam')) return stopScanner();
+    v.srcObject = SC.stream; await v.play();
+    msgEl.textContent = 'Looking for a QR code…';
+    if (!('BarcodeDetector' in window)) loadJsQR().catch(() => {});
+    SC.timer = setInterval(async () => {
+      if (SC.busy || !v.videoWidth || SC.reading) return;
+      SC.reading = true;
+      try {
+        const w = Math.min(640, v.videoWidth), hh = Math.round(v.videoHeight * w / v.videoWidth);
+        const text = await decodeQR(v, w, hh);
+        if (text) onScanned(text);
+      } catch (e) {} finally { SC.reading = false; }
+    }, 250);
+  } catch (e) {
+    stopScanner();
+    const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+    // Remember: on this phone use the camera-app photo instead
+    store.set('armm_photo_scan', '1');
+    box.classList.add('idle');
+    msgEl.textContent = '';
+    $('#scanIdle').innerHTML = '<div class="qrico">📷</div><div><b>Live camera isn\'t available here</b>' + (denied ? ' (camera permission blocked)' : '') +
+      '.<br>Tap <b>Scan QR</b> below. It opens the camera so you can take a photo of the badge.</div>' +
+      (CFG.scannerUrl && !REMOTE ? '<a class="btn dark" href="' + esc(CFG.scannerUrl) + '" target="_top" style="text-decoration:none">Open ARMM Live (live camera)</a>' : '');
+    $('#scanMain').innerHTML = scanButton(true);
+    if ($('#altShot')) $('#altShot').remove();
+    wireScanControls();
+  }
+}
+
+/** Shown when a badge (or old QR link) is opened with the phone camera / a browser instead of the ARMM scanner. */
+function showOutside() {
+  const base = CFG.scannerUrl || (BOOT.appUrl || '').split('?')[0];
+  $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Site Attendance') + logoImg() + '</div>' +
+    '<div class="sheet center"><div class="ov-ic" style="background:var(--out);margin-top:6px">!</div>' +
+    '<h1 style="font-size:20px;margin:6px 0">Scan with the ARMM app</h1>' +
+    '<p class="muted">This QR badge only works inside ARMM. Attendance was <b>not</b> recorded.</p>' +
+    '<p class="small">Site encoders: open ARMM, sign in, and use the <b>Scan worker QR</b> screen.</p>' +
+    (base ? '<p><a class="btn dark" href="' + esc(base) + '" target="_top" style="display:inline-block;text-decoration:none;padding:12px 18px">Open ARMM scanner</a></p>' : '') +
+    '</div></div>';
+}
+
+/* ===================== NAME PICKER ===================== */
+async function showPicker() {
+  loading();
+  try {
+    const d = await call('getWorkerData', '');
+    $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Site Attendance') + '<div class="hr"><div class="clock"><b class="tnum" id="clk"></b><span id="clkd"></span></div>' + logoImg() + '</div></div>' +
+      '<div class="sheet"><h1 style="font-size:19px;margin:0 0 10px">Find a worker <button class="btn" id="backScan" style="float:right;font-size:13px;padding:6px 10px">📷 Scan instead</button></h1>' +
+      '<input class="search" id="q" placeholder="Type the worker\'s name…" autocomplete="off"><div class="plist" id="pl"></div></div>' +
+      '<p class="center tiny" style="margin-top:14px">Recording as <b>' + esc(S.user ? S.user.name : '') + '</b> · <button class="linkbtn" id="myPwTop">Change password</button> · <button class="linkbtn" id="signOut">Sign out</button></p></div>';
+    wireAccount();
+    $('#backScan').onclick = () => showScanner();
+    tickClock();
+    const draw = q => {
+      const list = d.staff.filter(x => !q || norm(x.name).indexOf(norm(q)) >= 0);
+      $('#pl').innerHTML = list.map(x => '<button class="pitem" data-n="' + esc(x.name) + '"><span class="avatar">' + esc(initials(x.name)) + '</span><span><b>' + esc(x.name) + '</b><br><span class="small muted">' + esc(x.designation) + '</span></span></button>').join('') ||
+        '<p class="muted small">No match. Ask the office to add you to the ManpowerList.</p>';
+      $$('.pitem').forEach(b => b.onclick = () => showWorker(b.dataset.n));
+    };
+    $('#q').oninput = e => draw(e.target.value); draw('');
+  } catch (e) { $('#app').innerHTML = '<div class="phone"><div class="sheet" style="margin-top:20px"><div class="msg err">' + esc(errMsg(e)) + '</div></div></div>'; }
+}
+
+/* ===================== ADMIN DASHBOARD ===================== */
+const A = { tab: 'today', date: ymd(new Date()), filter: 'all', q: '', wkSite: '', data: null, wk: null, timer: null, updated: null };
+
+async function loadAdmin(fromLogin) {
+  if (fromLogin) loading('Opening dashboard…');
+  try {
+    if (A.tab === 'payroll' && !(S.user && S.user.role === 'Admin')) A.tab = 'today';
+    if (A.tab === 'payroll') {
+      A.pw = ymd(weekStartOf(parseYmd(A.date)));
+      A.pay = await call('getPayrollData', A.pw);
+      A.data = A.data || await call('getAdminData', A.date, A.date);
+    } else if (A.tab === 'week') {
+      const ws = weekStartOf(parseYmd(A.date));
+      A.wk = await call('getAdminData', ymd(ws), ymd(addDays(ws, 6)));
+      A.data = A.data || A.wk;
+    } else {
+      A.data = await call('getAdminData', A.date, A.date);
+    }
+    A.updated = new Date();
+    renderAdmin();
+  } catch (e) {
+    const m = errMsg(e);
+    if (/Only Admin/i.test(m)) { A.tab = 'today'; toast(m); return loadAdmin(false); }
+    if (fromLogin) $('#app').innerHTML = '<div class="login"><div class="panel"><div class="msg err">' + esc(m) + '</div></div></div>'; else toast(m);
+  }
+  clearInterval(A.timer);
+  A.timer = setInterval(() => {
+    if (A.tab === 'today' && A.data && A.date === A.data.today && document.visibilityState !== 'hidden') loadAdmin(false);
+  }, 60000);
+}
+function renderAdmin() {
+  const isAdmin = S.user && S.user.role === 'Admin';
+  const tabs = [['today', 'Daily'], ['week', 'Weekly hours'], ['payroll', 'Payroll'], ['master', 'Manpower & sites'], ['badges', 'QR badges'], ['settings', 'Users & settings']]
+    .filter(t => isAdmin || ['payroll', 'settings', 'master'].indexOf(t[0]) < 0);
+  if (!tabs.some(t => t[0] === A.tab)) A.tab = 'today';
+  $('#app').innerHTML = '<header class="a-band"><div class="a-top">' + appBrand('Attendance Dashboard') +
+    '<div class="tabs">' + tabs.map(t => '<button data-tab="' + t[0] + '"' + (A.tab === t[0] ? ' class="on"' : '') + '>' + t[1] + '</button>').join('') + '</div>' + userChip() + logoImg() + '</div></header>' +
+    '<div class="admin"><div id="tab"></div></div>';
+  wireAccount();
+  $$('.tabs button').forEach(b => b.onclick = () => {
+    A.tab = b.dataset.tab;
+    if (A.tab === 'week' || A.tab === 'today' || A.tab === 'payroll') return loadAdmin(false);
+    if (A.tab === 'settings') return loadUsers();
+    if (A.tab === 'master') return loadMaster();
+    renderAdmin();
+  });
+  ({ today: renderToday, week: renderWeek, payroll: renderPayroll, master: renderMaster, badges: renderBadges, settings: renderSettings })[A.tab]();
+}
+
+function dayRows(data, date) {
+  const isPast = date < data.today;
+  const g = groupRecords(data.records.filter(r => r.day === date));
+  const rows = [], seen = {};
+  for (const st of data.staff) {
+    const k = norm(st.name); seen[k] = 1;
+    rows.push(Object.assign({ name: st.name, designation: st.designation }, summarize(g[k + '|' + date] || [], isPast)));
+  }
+  Object.keys(g).forEach(key => {
+    const k = key.split('|')[0];
+    if (!seen[k]) rows.push(Object.assign({ name: g[key][0].name, designation: '(not in ManpowerList)' }, summarize(g[key], isPast)));
+  });
+  return rows;
+}
+function dateBar(extra) {
+  return '<div class="bar"><button class="btn" id="dPrev">◀</button><input type="date" id="dPick" value="' + A.date + '"><button class="btn" id="dNext">▶</button>' +
+    '<button class="btn" id="dToday">Today</button><button class="btn" id="dRef">↻ Refresh</button>' + (extra || '') +
+    '<span class="updated">' + (A.updated ? 'Updated ' + A.updated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '') + (DEMO ? ' · sample data' : '') + '</span></div>';
+}
+function wireDateBar(step) {
+  const set = d => { A.date = d; loadAdmin(false); };
+  $('#dPrev').onclick = () => set(ymd(addDays(parseYmd(A.date), -step)));
+  $('#dNext').onclick = () => set(ymd(addDays(parseYmd(A.date), step)));
+  $('#dToday').onclick = () => set(A.data ? A.data.today : ymd(new Date()));
+  $('#dRef').onclick = () => loadAdmin(false);
+  $('#dPick').onchange = e => e.target.value && set(e.target.value);
+}
+
+function renderToday() {
+  const data = A.data, isToday = A.date === data.today;
+  const rows = dayRows(data, A.date);
+  const present = rows.filter(r => r.state !== 'absent');
+  const cnt = {
+    present: present.length,
+    onsite: rows.filter(r => r.state === 'onsite').length,
+    ot: rows.filter(r => r.state === 'ot').length,
+    absent: rows.filter(r => r.state === 'absent').length,
+    flags: rows.filter(r => r.flags.length).length
+  };
+  const kpis = [
+    ['all', isToday ? 'Present today' : 'Present', cnt.present, 'var(--ink)'],
+    ['onsite', isToday ? 'On site now' : 'Checked out', isToday ? cnt.onsite : present.length, 'var(--in)'],
+    ['ot', isToday ? 'On OT now' : 'Did OT', isToday ? cnt.ot : rows.filter(r => r.ot > 0 || r.otIn).length, 'var(--otin)'],
+    ['absent', isToday ? 'Not in yet' : 'Absent', cnt.absent, 'var(--ink3)'],
+    ['flags', 'Need checking', cnt.flags, 'var(--out)']
+  ];
+  // site board
+  const bySite = {};
+  present.forEach(r => { (bySite[r.site || '—'] = bySite[r.site || '—'] || []).push(r); });
+  const siteCards = Object.keys(bySite).sort().map(site => {
+    const list = bySite[site].sort((a, b) => (a.in ? a.in.ts : 9e15) - (b.in ? b.in.ts : 9e15));
+    const here = isToday ? list.filter(r => r.state === 'onsite' || r.state === 'ot').length : list.length;
+    return '<div class="site"><h3>' + esc(site) + '<span title="' + (isToday ? 'On site now' : 'Present') + '">' + here + '</span></h3><ul>' +
+      list.map(r => '<li><span class="dot" style="background:' + (r.state === 'onsite' ? 'var(--in)' : r.state === 'ot' ? 'var(--otin)' : 'var(--ink3)') + '"></span>' + esc(r.name) +
+        '<span class="tnum">' + esc(r.in ? to12(r.in.time) : (r.otIn ? 'OT ' + to12(r.otIn.time) : '')) + '</span></li>').join('') + '</ul></div>';
+  }).join('');
+  // table
+  const f = A.filter, q = norm(A.q);
+  const shown = rows.filter(r =>
+    (f === 'all' || (f === 'flags' ? r.flags.length : f === 'onsite' ? (isToday ? r.state === 'onsite' : r.state !== 'absent') : f === 'ot' ? (isToday ? r.state === 'ot' : (r.ot > 0 || r.otIn)) : r.state === f)) &&
+    (!q || norm(r.name).indexOf(q) >= 0 || norm(r.site).indexOf(q) >= 0 || norm(r.designation).indexOf(q) >= 0));
+  shown.sort((a, b) => (a.state === 'absent') - (b.state === 'absent') || norm(a.site).localeCompare(norm(b.site)) || a.name.localeCompare(b.name));
+  const pillCls = { absent: 'st-absent', onsite: 'st-onsite', ot: 'st-ot', done: 'st-done' };
+  const t = r => r ? '<span class="tnum">' + esc(to12(r.time)) + '</span>' : '<span class="tiny">–</span>';
+  const tbl = '<table class="frz"><thead><tr><th class="stk split">Name</th><th>Designation</th><th>Site</th><th>IN</th><th>OUT</th><th>OT-IN</th><th>OT-OUT</th><th class="num">Reg hrs</th><th class="num">OT hrs</th><th>Status</th></tr></thead><tbody>' +
+    shown.map(r => '<tr><td class="stk split"><b>' + esc(r.name) + '</b></td><td class="muted">' + esc(r.designation) + '</td><td>' + esc(r.sites.join(', ')) + '</td>' +
+      '<td>' + t(r.in) + '</td><td>' + t(r.out) + '</td><td>' + t(r.otIn) + '</td><td>' + t(r.otOut) + '</td>' +
+      '<td class="num tnum">' + fmtH(r.reg) + '</td><td class="num tnum">' + fmtH(r.ot) + '</td>' +
+      '<td><span class="pill ' + pillCls[r.state] + '"><span class="dot"></span>' + STATE_LABEL[r.state] + '</span> ' +
+      r.flags.map(x => '<span class="flag' + (/^No |without/.test(x) ? ' red' : '') + '">' + esc(x) + '</span>').join('') + '</td></tr>').join('') +
+    '</tbody></table>' + (shown.length ? '' : '<p class="muted small center">Nobody matches this filter.</p>');
+  const feed = data.records.filter(r => r.day === A.date).slice(-25).reverse().map(r =>
+    '<div class="row"><span class="tag ' + TYPE[r.type] .cls + '">' + esc(r.type) + '</span><span class="nm">' + esc(r.name) + '<br><span class="tiny">' + esc(r.site) + '</span></span><span class="tm tnum">' + esc(to12(r.time)) + '</span></div>').join('');
+
+  $('#tab').innerHTML = dateBar() +
+    '<div class="small muted" style="margin:-6px 0 12px">' + esc(fmtDay(A.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' +
+    '<div class="kpis">' + kpis.map(k => '<button class="kpi' + (A.filter === k[0] ? ' on' : '') + '" data-f="' + k[0] + '"><div class="n tnum" style="color:' + k[3] + '">' + k[2] + '</div><div class="l">' + k[1] + '</div></button>').join('') + '</div>' +
+    (siteCards ? '<div class="sites">' + siteCards + '</div>' : '<div class="panel" style="margin-top:14px"><p class="muted center">No scans recorded for this day.</p></div>') +
+    '<div class="grid2"><div class="panel"><h2>Workers <input class="search" id="tq" style="margin-left:auto;width:220px;padding:6px 10px;font-size:13px;text-transform:none;letter-spacing:0" placeholder="Search name or site" value="' + esc(A.q) + '"></h2><div class="tbl-wrap">' + tbl + '</div>' +
+    '<p class="note">Hours are clock time between scans (no break deduction). Your Payroll tab still does the official computation.</p></div>' +
+    '<div class="panel feed"><h2>Latest scans</h2>' + (feed || '<p class="muted small">None yet.</p>') + '</div></div>';
+  wireDateBar(1);
+  $$('.kpi').forEach(b => b.onclick = () => { A.filter = A.filter === b.dataset.f ? 'all' : b.dataset.f; renderToday(); });
+  const tq = $('#tq'); tq.oninput = e => { A.q = e.target.value; renderToday(); const n = $('#tq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+}
+
+function weekTable() {
+  const data = A.wk, ws = weekStartOf(parseYmd(A.date));
+  const days = [0, 1, 2, 3, 4, 5, 6].map(i => ymd(addDays(ws, i)));
+  const g = groupRecords(data.records);
+  const names = data.staff.map(s => ({ name: s.name, designation: s.designation }));
+  const known = {}; names.forEach(n => known[norm(n.name)] = 1);
+  data.records.forEach(r => { if (!known[norm(r.name)]) { known[norm(r.name)] = 1; names.push({ name: r.name, designation: '(not in list)' }); } });
+  const rows = names.map(n => {
+    const cells = days.map(d => { const recs = g[norm(n.name) + '|' + d]; return recs ? summarize(recs, d < data.today) : null; });
+    const tot = { days: cells.filter(Boolean).length, reg: cells.reduce((a, c) => a + (c ? c.reg : 0), 0), ot: cells.reduce((a, c) => a + (c ? c.ot : 0), 0), flags: cells.reduce((a, c) => a + (c ? c.flags.length : 0), 0) };
+    return { n, cells, tot };
+  }).filter(r => !A.wkSite || r.cells.some(c => c && c.sites.indexOf(A.wkSite) >= 0));
+  return { days, rows };
+}
+function renderWeek() {
+  const { days, rows } = weekTable();
+  const sites = (A.wk.sites || []).slice();
+  const dayTot = days.map((d, i) => rows.reduce((a, r) => a + (r.cells[i] ? 1 : 0), 0));
+  const tbl = '<table class="wk frz"><thead><tr><th class="stk split">Name</th>' + days.map(dayTh).join('') +
+    '<th class="num">Days</th><th class="num">Reg hrs</th><th class="num">OT hrs</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td class="stk split"><b>' + esc(r.n.name) + '</b><br><span class="tiny">' + esc(r.n.designation) + '</span></td>' +
+      r.cells.map((c, i) => '<td class="d ' + dayCls(days[i]) + '">' + (c ? '<span class="h tnum">' + fmtH(c.reg) + '</span>' + (c.ot > 0 ? '<span class="ot tnum">+' + fmtH(c.ot) + ' OT</span>' : '') +
+        '<span class="s" title="' + esc(c.sites.join(', ')) + '">' + esc(c.sites.join(', ')) + '</span>' + (c.flags.length ? '<span class="flag" title="' + esc(c.flags.join(', ')) + '">!</span>' : '') : '<span class="tiny">–</span>') + '</td>').join('') +
+      '<td class="num tnum">' + r.tot.days + '</td><td class="num tnum"><b>' + fmtH(r.tot.reg) + '</b></td><td class="num tnum">' + fmtH(r.tot.ot) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td class="stk split">Present per day</td>' + dayTot.map((n, i) => '<td class="d tnum ' + dayCls(days[i]) + '">' + n + '</td>').join('') + '<td></td><td></td><td></td></tr></tfoot></table>';
+  $('#tab').innerHTML = dateBar('<select id="wSite"><option value="">All sites</option>' + sites.map(s => '<option' + (s === A.wkSite ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
+      '<button class="btn" id="wCopy">Copy for Sheets</button><button class="btn dark" id="wCsv">Download CSV</button>') +
+    '<div class="small muted" style="margin:-6px 0 12px">Payroll week ' + esc(fmtDay(days[0], { day: 'numeric', month: 'short' })) + ' – ' + esc(fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })) + '</div>' +
+    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Clock hours between IN→OUT and OT-IN→OT-OUT, before any break deduction. "!" marks a day with a missing or odd scan. Use the Daily tab to see details.</p></div>';
+  wireDateBar(7);
+  $('#wSite').onchange = e => { A.wkSite = e.target.value; renderWeek(); };
+  $('#wCsv').onclick = () => {
+    const blob = new Blob([weekCsv(',')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'attendance-week-' + days[0] + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  $('#wCopy').onclick = () => copy(weekCsv('\t'));
+}
+function weekCsv(sep) {
+  const { days, rows } = weekTable();
+  const q = v => sep === ',' ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const head = ['Name', 'Designation'].concat(days.reduce((a, d) => a.concat([d + ' Site', d + ' Reg', d + ' OT']), [])).concat(['Days', 'Reg hrs', 'OT hrs']);
+  const lines = [head.map(q).join(sep)];
+  rows.forEach(r => lines.push([r.n.name, r.n.designation].concat(r.cells.reduce((a, c) => a.concat(c ? [c.sites.join(' / '), round2(c.reg), round2(c.ot)] : ['', '', '']), []))
+    .concat([r.tot.days, round2(r.tot.reg), round2(r.tot.ot)]).map(q).join(sep)));
+  return lines.join('\n');
+}
+const round2 = h => Math.round(h * 100) / 100;
+
+
+/* ===================== PAYROLL ===================== */
+const PAY = () => CFG.pay;
+const roundTo = (x, q) => Math.round(x / q + 1e-9) * q;
+const peso = n => (n < 0 ? '−₱' : '₱') + (Math.round(Math.abs(n) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const minOf = t => { const p = t.split(':').map(Number); return p[0] * 60 + p[1]; };
+
+/** One worker's pay for one day, using the same rules as the Payroll tab in your sheet. */
+function payDay(recs, st) {
+  const P = PAY();
+  const first = recs.find(r => r.type === 'IN');
+  const ot = otRegistered(recs);
+  if (!first) return recs.length ? { site: recs[0].site, hours: 0, pay: 0, days: 0, otReg: ot, flag: 'No IN', recs } : null;
+  const out = recs.find(r => r.type === 'OUT' && r.ts > first.ts && norm(r.site) === norm(first.site));
+  if (!out) return { site: first.site, in: first, hours: 0, pay: 0, days: 0, otReg: ot, flag: 'No OUT', recs };
+  const hours = roundTo((out.ts - first.ts) / 36e5, P.ROUND_HOURS_TO);
+  const days = Math.min(1, roundTo(hours / P.HOURS_PER_DAY, 0.25));
+  let pay, lunch = 0;
+  if (hours >= P.FULL_DAY_HOURS) pay = st.rate;
+  else {
+    lunch = roundTo(Math.max(0, Math.min(minOf(out.time), minOf(P.LUNCH_END)) - Math.max(minOf(first.time), minOf(P.LUNCH_START))) / 60, P.ROUND_HOURS_TO);
+    pay = Math.round(Math.max(0, hours - lunch) * st.hourly * 100) / 100;
+  }
+  return { site: first.site, in: first, out, hours, days, pay, lunch, otReg: ot, recs };
+}
+function otRegistered(recs) {
+  let open = null, h = 0;
+  recs.forEach(r => { if (r.type === 'OT-IN' && !open) open = r; else if (r.type === 'OT-OUT' && open) { h += (r.ts - open.ts) / 36e5; open = null; } });
+  return roundTo(h, PAY().ROUND_HOURS_TO);
+}
+/** Why a day needs an Admin's attention (null = nothing to do). */
+function needReason(c) {
+  // Only days where the worker scanned OT-IN / OT-OUT need approval
+  if (c.reviewed || !(c.otReg > 0)) return null;
+  return { type: 'ot', label: 'OT scanned ' + fmtH(c.otReg) + ' h – approve?', hours: c.otReg };
+}
+function payrollRows() {
+  const d = A.pay, days = [0, 1, 2, 3, 4, 5, 6].map(i => ymd(addDays(parseYmd(A.pw), i)));
+  const g = groupRecords(d.records);
+  const adj = {};
+  (d.adjustments || []).forEach(a => { adj[norm(a.name) + '|' + a.date] = a; });
+  const rows = d.staff.map(st => {
+    const cells = days.map(day => {
+      const c = g[norm(st.name) + '|' + day] ? payDay(g[norm(st.name) + '|' + day], st) : null;
+      const a = adj[norm(st.name) + '|' + day];
+      if (!c && !a) return null;
+      const cell = c || { site: '', hours: 0, pay: 0, days: 0, otReg: 0, recs: [] };
+      cell.apprOt = a ? a.otHours : 0;
+      cell.reviewed = !!(a && (a.otHours || a.note));
+      cell.need = needReason(cell);
+      cell.otPay = Math.round(cell.apprOt * st.otRate * 100) / 100;
+      return cell;
+    });
+    const wa = adj[norm(st.name) + '|'] || { amount: 0, note: '', site: '' };
+    const sum = k => cells.reduce((s, c) => s + (c ? c[k] : 0), 0);
+    const siteDays = {};
+    cells.forEach(c => { if (c && c.site) siteDays[c.site] = (siteDays[c.site] || 0) + (c.days || 0.01); });
+    const mainSite = Object.keys(siteDays).sort((a, b) => siteDays[b] - siteDays[a])[0] || '';
+    const t = { days: sum('days'), hours: sum('hours'), pay: sum('pay'), apprOt: sum('apprOt'), otPay: sum('otPay'), adj: wa.amount, note: wa.note, adjSite: wa.site || '', mainSite };
+    t.total = Math.round((t.pay + t.otPay + t.adj) * 100) / 100;
+    return { st, cells, t, flags: cells.filter(c => c && c.flag).length, needs: cells.filter(c => c && c.need).length };
+  });
+  return { days, rows };
+}
+function renderPayroll() {
+  const { days, rows } = payrollRows();
+  const shown = rows.filter(r => (!A.payHideZero || r.t.total || r.t.hours || r.flags) &&
+    (A.payFilter !== 'approval' || r.needs) && (A.payFilter !== 'ot' || r.t.apprOt > 0));
+  const pending = [];
+  rows.forEach((r, ri) => r.cells.forEach((c, i) => { if (c && c.need) pending.push({ r, ri, i, day: days[i], c }); }));
+  const pendWorkers = rows.filter(r => r.needs).length;
+  const tot = k => rows.reduce((s, r) => s + r.t[k], 0);
+  const grand = tot('total');
+  const dayTot = days.map((_, i) => rows.reduce((s, r) => s + (r.cells[i] ? r.cells[i].pay + r.cells[i].otPay : 0), 0));
+  const dayCnt = days.map((_, i) => rows.reduce((s, r) => s + (r.cells[i] ? r.cells[i].days : 0), 0));
+  const ss = siteSummary(rows);
+  const subTotal = ss.reduce((s, x) => s + x.subcon, 0);
+  const kpis = [['', 'Workers payroll', peso(grand), 'var(--ink)'], ['', 'Subcontractors', peso(subTotal), 'var(--accent)'], ['', 'Grand total', peso(grand + subTotal), 'var(--brand)'],
+    ['ot', 'Approved OT · ' + fmtH(tot('apprOt')) + ' h', peso(tot('otPay')), 'var(--otin)'],
+    ['approval', 'OT needs approval' + (pending.length ? ' · ' + pendWorkers + (pendWorkers === 1 ? ' worker' : ' workers') : ''), pending.length ? pending.length + (pending.length === 1 ? ' item' : ' items') : 'All clear ✓', pending.length ? 'var(--out)' : 'var(--in)']];
+  const cell = (c, r, i) => {
+    if (!c) return '<td class="d pc noprint ' + dayCls(days[i]) + '" data-r="' + r + '" data-i="' + i + '"><span class="tiny">–</span></td>';
+    return '<td class="d pc noprint ' + dayCls(days[i]) + (c.need ? ' needs' : '') + '" data-r="' + r + '" data-i="' + i + '" title="' + (c.need ? esc(c.need.label) : 'Click for details / approve OT') + '">' +
+      (c.flag ? '<span class="flag red">' + esc(c.flag) + '</span>' : '<span class="h tnum">' + fmtH(c.hours) + '</span>') +
+      '<span class="pp tnum">' + (c.pay ? peso(c.pay) : '₱0') + '</span>' +
+      (c.apprOt ? '<span class="ot tnum">+' + fmtH(c.apprOt) + 'h OT</span>' : (c.otReg ? '<span class="s">OT reg ' + fmtH(c.otReg) + 'h</span>' : '')) +
+      '<span class="s">' + esc(c.site) + '</span></td>';
+  };
+  const tbl = '<table class="wk pay frz"><thead><tr><th class="stk stkn">#</th><th class="stk stk2 split">Name</th><th class="num noprint">Rate</th>' + days.map(d => dayTh(d).replace('class="dh', 'class="noprint dh')).join('') +
+    '<th class="num">Days</th><th class="num">Day pay</th><th class="num">Appr OT</th><th class="num">OT pay</th><th class="num">Adj.</th><th class="num">Total</th><th class="print-only">Signature</th></tr></thead><tbody>' +
+    shown.map(r => { const ri = rows.indexOf(r); return '<tr><td class="tiny stk stkn">' + esc(r.st.no) + '</td><td class="stk stk2 split"><b>' + esc(r.st.name) + '</b><br><span class="tiny">' + esc(r.st.designation) + '</span></td>' +
+      '<td class="num tnum noprint">' + peso(r.st.rate) + '<br><span class="tiny">' + peso(r.st.hourly) + '/h · OT ' + peso(r.st.otRate) + '</span></td>' +
+      r.cells.map((c, i) => cell(c, ri, i)).join('') +
+      '<td class="num tnum">' + fmtH(r.t.days) + '</td><td class="num tnum">' + peso(r.t.pay) + '</td><td class="num tnum">' + fmtH(r.t.apprOt) + '</td><td class="num tnum">' + (r.t.otPay ? peso(r.t.otPay) : '–') + '</td>' +
+      '<td class="num tnum adj" data-r="' + ri + '" title="Click to add an adjustment">' + (r.t.adj ? peso(r.t.adj) : '<span class="tiny noprint">+ add</span>') + (r.t.note || r.t.adjSite ? '<br><span class="tiny">' + esc([r.t.note, r.t.adj ? r.t.adjSite : ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</td>' +
+      '<td class="num tnum"><b>' + peso(r.t.total) + '</b></td><td class="print-only sig"></td></tr>'; }).join('') +
+    '</tbody><tfoot><tr><td class="stk stkn"></td><td class="stk stk2 split">Totals</td><td class="noprint"></td>' + dayTot.map((n, i) => '<td class="d tnum noprint ' + dayCls(days[i]) + '">' + peso(n) + '<span class="s">' + fmtH(dayCnt[i]) + ' days</span></td>').join('') +
+    '<td class="num tnum">' + fmtH(tot('days')) + '</td><td class="num tnum">' + peso(tot('pay')) + '</td><td class="num tnum">' + fmtH(tot('apprOt')) + '</td><td class="num tnum">' + peso(tot('otPay')) + '</td><td class="num tnum">' + peso(tot('adj')) + '</td><td class="num tnum">' + peso(grand) + '</td><td class="print-only"></td></tr></tfoot></table>';
+  const P = PAY();
+  $('#tab').innerHTML = dateBar('<label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pHide"' + (A.payHideZero ? ' checked' : '') + '> Hide workers with no pay</label>' +
+      '<button class="btn" id="pCopy">Copy for Sheets</button><button class="btn" id="pCsv">Download CSV</button><button class="btn dark" id="pPrint">Print payroll</button>') +
+    '<h2 class="pay-title">' + logoImg('print-logo') + 'Payroll · ' + esc(fmtDay(days[0], { day: 'numeric', month: 'short' })) + ' – ' + esc(fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })) + '</h2>' +
+    '<div class="kpis noprint">' + kpis.map(k => (k[0] ? '<button class="kpi' + (A.payFilter === k[0] ? ' on' : '') + (k[0] === 'approval' && pending.length ? ' alert' : '') + '" data-pf="' + k[0] + '" title="Click to filter">' : '<div class="kpi">') +
+      '<div class="n tnum" style="color:' + k[3] + ';font-size:24px">' + k[2] + '</div><div class="l">' + esc(k[1]) + (k[0] ? ' <span class="tiny">' + (A.payFilter === k[0] ? '· showing ✕' : '· filter') + '</span>' : '') + '</div>' + (k[0] ? '</button>' : '</div>')).join('') + '</div>' +
+    (A.payFilter === 'approval' ? approvalPanel(pending) : '') +
+    (A.payFilter ? '<p class="small noprint" style="margin:10px 0 0"><b>Filtered:</b> ' + (A.payFilter === 'approval' ? 'workers that need approval' : 'workers with approved OT') + ' · <button class="linkbtn" id="pfClear">Show everyone</button></p>' : '') +
+    '<div class="panel" style="margin-top:14px"><div class="tbl-wrap">' + tbl + '</div>' +
+    '<p class="note noprint">Same rules as your Payroll tab: hours = first IN to first OUT at the same site, rounded to ' + P.ROUND_HOURS_TO + ' h; ' + P.FULL_DAY_HOURS + ' h or more = full daily rate; under that = hourly rate × hours, minus lunch (' + P.LUNCH_START + '–' + P.LUNCH_END + ') if worked through it. ' +
+    'OT is only paid when approved. Click a day to approve OT, or the Adj. column for allowances or deductions (use a minus sign for deductions). These are saved in the PayrollAdjustments tab of your sheet.</p></div>' +
+    siteSummaryPanel(ss, grand, subTotal) +
+    '<div class="print-only-block sign-block"><div><span></span>Prepared by</div><div><span></span>Checked by</div><div><span></span>Approved by</div></div>';
+  wireDateBar(7);
+  $('#pHide').onchange = e => { A.payHideZero = e.target.checked; renderPayroll(); };
+  $$('[data-pf]').forEach(b => b.onclick = () => { A.payFilter = A.payFilter === b.dataset.pf ? '' : b.dataset.pf; renderPayroll(); });
+  if ($('#pfClear')) $('#pfClear').onclick = () => { A.payFilter = ''; renderPayroll(); };
+  $$('[data-apv]').forEach(b => b.onclick = async () => {
+    const it = pending[+b.dataset.apv]; b.disabled = true;
+    try {
+      A.pay.adjustments = await call('saveAdjustment', b.dataset.kind === 'ok'
+        ? { week: A.pw, name: it.r.st.name, date: it.day, otHours: it.c.need.hours }
+        : { week: A.pw, name: it.r.st.name, date: it.day, otHours: 0, note: 'Reviewed – no OT' });
+      renderPayroll(); toast(b.dataset.kind === 'ok' ? 'Approved ' + fmtH(it.c.need.hours) + ' h OT' : 'Marked as reviewed');
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+  $$('[data-rev]').forEach(b => b.onclick = () => { const it = pending[+b.dataset.rev]; editDay(rows[it.ri], it.i, it.day); });
+  $('#pPrint').onclick = () => window.print();
+  $('#pCopy').onclick = () => copy(payrollCsv('\t'));
+  $('#pCsv').onclick = () => {
+    const blob = new Blob([payrollCsv(',')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'payroll-' + A.pw + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  $$('td.pc').forEach(td => td.onclick = () => editDay(rows[+td.dataset.r], +td.dataset.i, days[+td.dataset.i]));
+  $$('td.adj').forEach(td => td.onclick = () => editAdj(rows[+td.dataset.r]));
+  $$('[data-subadd]').forEach(b => b.onclick = () => editSubcon({ site: b.dataset.subadd }));
+  $('#subAddAny').onclick = () => editSubcon({});
+  $$('[data-subedit]').forEach(b => b.onclick = () => editSubcon((A.pay.subcons || []).find(x => x.id === b.dataset.subedit)));
+}
+
+/** Per-site totals: labour (day pay + approved OT), adjustments charged to the site, and subcontractor fees. */
+function siteSummary(rows) {
+  const m = {};
+  const get = s => (m[s] = m[s] || { site: s, labour: 0, adj: 0, subcon: 0, subs: [] });
+  rows.forEach(r => {
+    r.cells.forEach(c => { if (c && (c.pay || c.otPay)) get(c.site || '(no site)').labour += c.pay + c.otPay; });
+    if (r.t.adj) get(r.t.adjSite || r.t.mainSite || '(no site)').adj += r.t.adj;
+  });
+  (A.pay.subcons || []).forEach(x => { const s = get(x.site); s.subcon += x.amount; s.subs.push(x); });
+  const order = (A.pay.sites || []).map(norm);
+  return Object.values(m).map(x => Object.assign(x, { total: x.labour + x.adj + x.subcon }))
+    .sort((a, b) => { const ia = order.indexOf(norm(a.site)), ib = order.indexOf(norm(b.site)); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib); });
+}
+function siteSummaryPanel(ss, grand, subTotal) {
+  const used = ss.map(x => norm(x.site));
+  const others = (A.pay.sites || []).filter(s => used.indexOf(norm(s)) < 0);
+  return '<div class="panel site-sum" style="margin-top:14px"><h2>Summary by site <button class="btn noprint" id="subAddAny" style="margin-left:auto;text-transform:none;letter-spacing:0">+ Subcontractor fee</button></h2>' +
+    '<table><thead><tr><th>Site</th><th class="num">Labour</th><th class="num">Adjustments</th><th class="num">Subcontractors</th><th class="num">Total</th><th class="noprint"></th></tr></thead><tbody>' +
+    ss.map(x => '<tr class="srow"><td><b>' + esc(x.site) + '</b></td><td class="num tnum">' + peso(x.labour) + '</td><td class="num tnum">' + (x.adj ? peso(x.adj) : '–') + '</td><td class="num tnum">' + (x.subcon ? peso(x.subcon) : '–') +
+      '</td><td class="num tnum"><b>' + peso(x.total) + '</b></td><td class="noprint"><button class="linkbtn" data-subadd="' + esc(x.site) + '">+ Subcon</button></td></tr>' +
+      x.subs.map(s => '<tr class="subrow"><td colspan="3">↳ ' + esc(s.contractor) + (s.note ? ' <span class="tiny">· ' + esc(s.note) + '</span>' : '') + '</td><td class="num tnum">' + peso(s.amount) +
+        '</td><td></td><td class="noprint"><button class="linkbtn" data-subedit="' + esc(s.id) + '">Edit</button></td></tr>').join('')).join('') +
+    (ss.length ? '' : '<tr><td colspan="6" class="muted small">No pay or subcontractor fees this week yet.</td></tr>') +
+    '</tbody><tfoot><tr><td>Grand total</td><td class="num tnum">' + peso(ss.reduce((s, x) => s + x.labour, 0)) + '</td><td class="num tnum">' + peso(ss.reduce((s, x) => s + x.adj, 0)) +
+    '</td><td class="num tnum">' + peso(subTotal) + '</td><td class="num tnum">' + peso(grand + subTotal) + '</td><td class="noprint"></td></tr></tfoot></table>' +
+    (others.length ? '<p class="note noprint">Other sites: ' + others.map(s => '<button class="linkbtn" data-subadd="' + esc(s) + '">' + esc(s) + '</button>').join(' · ') + ' (click to add a subcontractor fee)</p>' : '') +
+    '</div>';
+}
+function editSubcon(s) {
+  s = s || {};
+  const sites = A.pay.sites || [];
+  const ov = modal('<h3 style="font-size:18px">' + (s.id ? 'Edit' : 'Add') + ' subcontractor fee</h3><p class="small muted">Payroll week ' + esc(fmtDay(A.pw, { month: 'short', day: 'numeric' })) + ' – ' + esc(fmtDay(ymd(addDays(parseYmd(A.pw), 6)), { month: 'short', day: 'numeric' })) + '</p>' +
+    '<div style="text-align:left"><label class="field"><span>Site</span><select id="sSite"><option value="">Choose site…</option>' + sites.map(x => '<option' + (norm(x) === norm(s.site) ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
+    '<label class="field"><span>Subcontractor</span><input id="sName" maxlength="60" value="' + esc(s.contractor || '') + '" placeholder="e.g. JM Tiling Works"></label>' +
+    '<label class="field"><span>Fee (₱)</span><input id="sAmt" type="number" step="0.01" value="' + (s.amount || '') + '" placeholder="e.g. 15000"></label>' +
+    '<label class="field"><span>Note</span><input id="sNote" maxlength="80" value="' + esc(s.note || '') + '" placeholder="e.g. Tiling 2nd floor, 50% progress"></label></div>' +
+    '<div class="ov-actions">' + (s.id ? '<button data-a="del" style="color:var(--out)">Delete</button>' : '') + '<button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    b.disabled = true;
+    try {
+      if (b.dataset.a === 'del') {
+        if (!(await confirmBox('Delete this fee?', s.contractor + ' · ' + peso(s.amount), 'Delete'))) { b.disabled = false; return; }
+        A.pay.subcons = await call('deleteSubcon', A.pw, s.id);
+      } else {
+        A.pay.subcons = await call('saveSubcon', { week: A.pw, id: s.id, site: $('#sSite', ov).value, contractor: $('#sName', ov).value, amount: Number($('#sAmt', ov).value) || 0, note: $('#sNote', ov).value });
+      }
+      ov.remove(); renderPayroll(); toast('Saved');
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+function otTimes(c) {
+  const ins = (c.recs || []).filter(r => r.type === 'OT-IN'), outs = (c.recs || []).filter(r => r.type === 'OT-OUT');
+  return (ins[0] ? esc(to12(ins[0].time)) : '–') + ' → ' + (outs.length ? esc(to12(outs[outs.length - 1].time)) : '–');
+}
+function approvalPanel(pending) {
+  if (!pending.length) return '<div class="panel appr noprint" style="margin-top:14px"><h2>Needs approval</h2><p class="small" style="margin:0;color:var(--in)">✓ No OT-IN / OT-OUT waiting for approval this week.</p></div>';
+  const tag = { ot: ['OT', 't-otin'], long: ['Long day', 't-otout'], issue: ['Issue', 't-out'] };
+  return '<div class="panel appr noprint" style="margin-top:14px"><h2>Needs approval <span class="pill st-ot" style="text-transform:none;letter-spacing:0">' + pending.length + '</span></h2>' +
+    '<p class="small muted" style="margin:0 0 8px">Days where the worker scanned <b>OT-IN / OT-OUT</b>. Approve the scanned hours, enter different hours with <b>Review</b>, or choose <b>No OT</b> to clear it from this list.</p>' +
+    '<div class="tbl-wrap" style="max-height:340px"><table><thead><tr><th>Worker</th><th>Day</th><th>Site</th><th>OT-IN → OT-OUT</th><th>Reason</th><th></th></tr></thead><tbody>' +
+    pending.map((it, k) => '<tr><td><b>' + esc(it.r.st.name) + '</b></td><td>' + esc(fmtDay(it.day)) + '</td><td class="small">' + esc(it.c.site || '') + '</td>' +
+      '<td class="tnum small">' + otTimes(it.c) + '</td>' +
+      '<td><span class="tag ' + tag[it.c.need.type][1] + '">' + tag[it.c.need.type][0] + '</span> <span class="small">' + esc(it.c.need.label) + '</span></td>' +
+      '<td style="white-space:nowrap;text-align:right">' +
+        '<button class="btn dark" data-apv="' + k + '" data-kind="ok">Approve ' + fmtH(it.c.need.hours) + ' h</button> ' +
+        '<button class="btn" data-rev="' + k + '">Review</button> ' +
+        '<button class="btn" data-apv="' + k + '" data-kind="no">No OT</button></td></tr>').join('') +
+    '</tbody></table></div></div>';
+}
+function editDay(row, i, day) {
+  const c = row.cells[i] || { hours: 0, pay: 0, recs: [], apprOt: 0, otReg: 0 };
+  const scans = (c.recs || []).map(r => '<div class="log-row"><span class="tag ' + TYPE[r.type].cls + '">' + esc(r.type) + '</span><span class="small muted">' + esc(r.site) + (r.by ? ' · by ' + esc(r.by) : '') + '</span><span class="t tnum">' + esc(to12(r.time)) + '</span></div>').join('') || '<p class="small muted">No scans this day.</p>';
+  const ov = modal('<h3 style="font-size:18px">' + esc(row.st.name) + '</h3><p class="small muted" style="margin:2px 0 10px">' + esc(fmtDay(day, { weekday: 'long', day: 'numeric', month: 'short' })) + '</p>' +
+    '<div style="text-align:left">' + scans +
+    '<p class="small">Hours <b>' + fmtH(c.hours) + '</b>' + (c.lunch ? ' (minus ' + fmtH(c.lunch) + ' h lunch)' : '') + ' · Pay <b>' + peso(c.pay) + '</b>' + (c.flag ? ' · <span class="flag red">' + esc(c.flag) + '</span>' : '') + '</p>' +
+    (c.flag ? '<p class="tiny">Fix the missing scan in the AttendanceData tab, then refresh.</p>' : '') +
+    (c.need ? '<p class="small" style="color:var(--otin);font-weight:600">⚑ ' + esc(c.need.label) + '</p>' : '') +
+    '<label class="field"><span>Approved OT hours' + (c.otReg ? ' (OT scanned: ' + fmtH(c.otReg) + ' h)' : '') + ' · ' + peso(row.st.otRate) + '/h</span><input id="eOt" type="number" min="0" max="24" step="0.25" value="' + (c.apprOt || '') + '" placeholder="0"></label></div>' +
+    '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    const v = Number($('#eOt', ov).value) || 0;
+    b.disabled = true;
+    const needed = c.need || c.reviewed;   // keep a "reviewed" mark so the day leaves the Needs approval list
+    try { A.pay.adjustments = await call('saveAdjustment', { week: A.pw, name: row.st.name, date: day, otHours: v, note: !v && needed ? 'Reviewed – no OT' : '' }); ov.remove(); renderPayroll(); toast('Saved'); }
+    catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+function editAdj(row) {
+  const ov = modal('<h3 style="font-size:18px">Adjustment · ' + esc(row.st.name) + '</h3><p class="small muted">Allowance, bonus, cash advance or deduction for this week. Use a minus sign for deductions.</p>' +
+    '<div style="text-align:left"><label class="field"><span>Amount (₱)</span><input id="eAmt" type="number" step="0.01" value="' + (row.t.adj || '') + '" placeholder="e.g. 1000 or -500"></label>' +
+    '<label class="field"><span>Note</span><input id="eNote" maxlength="80" value="' + esc(row.t.note || '') + '" placeholder="e.g. Allowance, Cash advance"></label>' +
+    '<label class="field"><span>Charge to site</span><select id="eSite"><option value="">Choose site…</option>' + (A.pay.sites || []).map(x => '<option' + (norm(x) === norm(row.t.adjSite || row.t.mainSite) ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label></div>' +
+    '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    b.disabled = true;
+    try {
+      A.pay.adjustments = await call('saveAdjustment', { week: A.pw, name: row.st.name, date: '', amount: Number($('#eAmt', ov).value) || 0, note: $('#eNote', ov).value, site: $('#eSite', ov).value });
+      ov.remove(); renderPayroll(); toast('Saved');
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+function payrollCsv(sep) {
+  const { days, rows } = payrollRows();
+  const q = v => sep === ',' ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const head = ['No', 'Name', 'Rate', 'Hourly', 'OT Rate'].concat(days.reduce((a, d) => a.concat([d + ' Site', d + ' Hrs', d + ' Pay', d + ' Appr OT']), []))
+    .concat(['Days', 'Day pay', 'Appr OT hrs', 'OT pay', 'Adjustment', 'Adj. site', 'Note', 'Total']);
+  const lines = [head.map(q).join(sep)];
+  rows.filter(r => !A.payHideZero || r.t.total || r.t.hours).forEach(r => lines.push([r.st.no, r.st.name, r.st.rate, r.st.hourly, r.st.otRate]
+    .concat(r.cells.reduce((a, c) => a.concat(c ? [c.site, c.flag || c.hours, c.pay, c.apprOt || ''] : ['', '', '', '']), []))
+    .concat([r.t.days, round2(r.t.pay), r.t.apprOt, round2(r.t.otPay), round2(r.t.adj), r.t.adj ? (r.t.adjSite || r.t.mainSite) : '', r.t.note || '', round2(r.t.total)]).map(q).join(sep)));
+  return lines.join('\n');
+}
+
+function renderBadges() {
+  const data = A.data, base = (data.appUrl || BOOT.appUrl || '').split('?')[0];
+  $('#tab').innerHTML = '<div class="bar"><input class="search" id="bq" placeholder="Filter names…"><button class="btn dark" id="bPrint">Print badges</button>' +
+    '<span class="updated">Scan these with the ARMM scanner only. A phone camera shows an error.</span></div><div class="badges" id="bl"></div>';
+  const draw = qv => {
+    const list = data.staff.filter(s => !qv || norm(s.name).indexOf(norm(qv)) >= 0);
+    $('#bl').innerHTML = list.map((s, i) => '<div class="badge"><img class="bgl" src="' + LOGO + '" alt=""><div class="co"><b>ARMM</b> · AR4Z Manpower Monitoring</div><div class="qr" id="qr' + i + '"></div><b>' + esc(s.name) + '</b><span>' + esc(s.designation) + '</span></div>').join('');
+    list.forEach((s, i) => drawQr($('#qr' + i), s.badge || (base + '?badge=demo.' + encodeURIComponent(s.name))));
+  };
+  $('#bq').oninput = e => draw(e.target.value); draw('');
+  $('#bPrint').onclick = () => window.print();
+}
+function drawQr(el, text) {
+  if (typeof qrcode === 'function') {
+    const qr = qrcode(0, 'L'); qr.addData(text); qr.make();   // 'L' = fewer, bigger squares: easier for phones to read
+    // drop the QR's white background so the logo watermark shows through
+    el.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }).replace(/<rect[^>]*fill="white"[^>]*\/>/, '');
+  } else el.innerHTML = '<span class="tiny" style="word-break:break-all">' + esc(text) + '</span>';
+}
+
+/* ===================== MANPOWER & SITES (Admin) ===================== */
+async function loadMaster() {
+  try { A.master = await call('getMasterData'); } catch (e) { toast(errMsg(e)); A.master = A.master || { staff: [], sites: [] }; }
+  renderAdmin();
+}
+/** Re-reads names and sites for the other tabs after a change (runs quietly in the background). */
+function refreshAdminData() { call('getAdminData', A.date, A.date).then(d => { A.data = d; }).catch(() => {}); }
+function renderMaster() {
+  const m = A.master || { staff: [], sites: [] }, q = norm(A.mq || '');
+  const staff = m.staff.filter(s => !q || norm(s.name).indexOf(q) >= 0 || norm(s.designation).indexOf(q) >= 0);
+  const base = (m.appUrl || BOOT.appUrl || '').split('?')[0];
+  const linkOk = s => base && String(s.link || '').indexOf(base) === 0 && String(s.link).indexOf('?badge=') > 0;
+  $('#tab').innerHTML = '<div class="mgrid">' +
+    '<div class="panel"><h2>Manpower <span class="pill st-done" style="text-transform:none;letter-spacing:0">' + m.staff.length + '</span>' +
+      '<input class="search" id="mq" style="margin-left:auto;width:200px;padding:6px 10px;font-size:13px;text-transform:none;letter-spacing:0" placeholder="Search name or designation" value="' + esc(A.mq || '') + '">' +
+      '<button class="btn dark" id="wAdd" style="text-transform:none;letter-spacing:0">+ Add worker</button></h2>' +
+      '<div class="tbl-wrap"><table class="frz"><thead><tr><th class="stk stkn">No.</th><th class="stk stk2 split">Full name</th><th>Designation</th><th class="num">Daily rate</th><th class="num">Hourly</th><th class="num">OT rate</th><th>QR link</th><th></th></tr></thead><tbody>' +
+      staff.map(s => '<tr><td class="stk stkn tiny">' + esc(s.no) + '</td><td class="stk stk2 split"><b>' + esc(s.name) + '</b></td><td>' + esc(s.designation) + '</td>' +
+        '<td class="num tnum">' + peso(s.rate) + '</td><td class="num tnum">' + peso(s.hourly) + (s.hourlyFormula ? ' <span class="tiny" title="Calculated by a formula in the sheet">ƒ</span>' : '') + '</td>' +
+        '<td class="num tnum">' + peso(s.otRate) + (s.otFormula ? ' <span class="tiny" title="Calculated by a formula in the sheet">ƒ</span>' : '') + '</td>' +
+        '<td>' + (linkOk(s) ? '<span class="pill st-onsite"><span class="dot"></span>App</span>' : '<span class="pill st-ot" title="' + esc(s.link) + '"><span class="dot"></span>Old/none</span>') + '</td>' +
+        '<td><button class="btn" data-we="' + m.staff.indexOf(s) + '">Edit</button></td></tr>').join('') +
+      (staff.length ? '' : '<tr><td colspan="8" class="muted small">No workers found.</td></tr>') + '</tbody></table></div>' +
+      '<p class="note">Saved straight into the <b>ManpowerList</b> tab. New workers get the next row, with your QR CODE / OT Rate / Hourly Rate formulas copied from the row above, and their QR link set to this app. ' +
+      '<b>ƒ</b> = calculated by a formula in the sheet (worked out from the daily rate).</p></div>' +
+    '<div class="panel"><h2>Site locations <span class="pill st-done" style="text-transform:none;letter-spacing:0">' + m.sites.length + '</span>' +
+      '<button class="btn dark" id="sAdd" style="margin-left:auto;text-transform:none;letter-spacing:0">+ Add site</button></h2>' +
+      '<table><thead><tr><th>No.</th><th>Site</th><th>Remarks</th><th></th></tr></thead><tbody>' +
+      m.sites.map((s, i) => '<tr><td class="tiny">' + esc(s.no) + '</td><td><b>' + esc(s.name) + '</b></td><td class="small">' + esc(s.remarks) + '</td><td style="white-space:nowrap;text-align:right"><button class="btn" data-se="' + i + '">Edit</button> <button class="btn danger" data-sd="' + i + '">Delete</button></td></tr>').join('') +
+      '</tbody></table>' +
+      '<p class="note">Saved straight into the <b>SiteLocations</b> tab. A new site is added inside the list (with the same cost formulas as the other sites), so the totals include it. ' +
+      'A site with scans in the last 14 days can\'t be deleted, so its payroll isn\'t affected.</p></div>' +
+  '</div>';
+  $('#mq').oninput = e => { A.mq = e.target.value; renderMaster(); const n = $('#mq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+  $('#wAdd').onclick = () => editWorker(null);
+  $('#sAdd').onclick = () => editSiteRow(null);
+  $$('[data-we]').forEach(b => b.onclick = () => editWorker(m.staff[+b.dataset.we]));
+  $$('[data-se]').forEach(b => b.onclick = () => editSiteRow(m.sites[+b.dataset.se]));
+  $$('[data-sd]').forEach(b => b.onclick = async () => {
+    const s = m.sites[+b.dataset.sd];
+    const ok = await confirmBox('Delete "' + s.name + '"?',
+      'It will be removed from the SiteLocations list and from the site dropdowns. Past scans keep this site name. ' +
+      'If any formula elsewhere in your sheet points at this site\'s row, it will show #REF!, so check the summary tables afterwards.', 'Delete site');
+    if (!ok) return;
+    b.disabled = true;
+    try { A.master = await call('deleteSite', s.row, s.name); refreshAdminData(); renderMaster(); toast('Site deleted'); }
+    catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+function editWorker(w) {
+  const isNew = !w; w = w || { name: '', designation: '', rate: '', hourly: '', otRate: '' };
+  const designs = Array.from(new Set((A.master.staff || []).map(s => s.designation).filter(Boolean))).sort();
+  const ov = modal('<h3 style="font-size:18px">' + (isNew ? 'Add worker' : 'Edit worker') + '</h3>' +
+    (isNew ? '' : '<p class="tiny">ManpowerList row ' + w.row + '</p>') +
+    '<div style="text-align:left">' +
+    '<label class="field"><span>Full name</span><input id="wN" value="' + esc(w.name) + '" placeholder="e.g. Juan Dela Cruz"></label>' +
+    (isNew ? '' : '<p class="tiny" style="margin:4px 0 0">Changing the name does not change past scans. They stay under the old name, so only fix spelling.</p>') +
+    '<label class="field"><span>Designation</span><input id="wD" list="wDl" value="' + esc(w.designation) + '" placeholder="e.g. Mason"><datalist id="wDl">' + designs.map(d => '<option value="' + esc(d) + '">').join('') + '</datalist></label>' +
+    '<label class="field"><span>Daily rate (₱)</span><input id="wR" type="number" step="0.01" min="0" value="' + (w.rate || '') + '"></label>' +
+    '<div class="two"><label class="field"><span>Hourly rate (₱)' + (w.hourlyFormula ? ' · formula' : '') + '</span><input id="wH" type="number" step="0.01" value="' + (w.hourly || '') + '"' + (w.hourlyFormula ? ' disabled' : '') + ' placeholder="auto: rate ÷ 8"></label>' +
+    '<label class="field"><span>OT rate (₱)' + (w.otFormula ? ' · formula' : '') + '</span><input id="wO" type="number" step="0.01" value="' + (w.otRate || '') + '"' + (w.otFormula ? ' disabled' : '') + ' placeholder="auto: hourly × 1.25"></label></div>' +
+    '<p class="tiny" style="margin:6px 0 0">Leave Hourly / OT blank to work them out from the daily rate. Rates that come from a formula in your sheet are worked out there.</p></div>' +
+    '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.querySelector('.ov-card').style.maxWidth = '440px';
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    b.disabled = true;
+    try {
+      A.master = await call('saveWorker', { row: w.row, name: $('#wN', ov).value, designation: $('#wD', ov).value, rate: Number($('#wR', ov).value) || 0,
+        hourly: w.hourlyFormula ? 0 : Number($('#wH', ov).value) || 0, otRate: w.otFormula ? 0 : Number($('#wO', ov).value) || 0 });
+      refreshAdminData(); ov.remove(); renderMaster(); toast(isNew ? 'Worker added' : 'Worker saved');
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+function editSiteRow(s) {
+  const isNew = !s; s = s || { name: '', remarks: '' };
+  const ov = modal('<h3 style="font-size:18px">' + (isNew ? 'Add site' : 'Edit site') + '</h3><div style="text-align:left">' +
+    '<label class="field"><span>Site name</span><input id="sN" value="' + esc(s.name) + '" placeholder="e.g. B2 L5 AMAIA"></label>' +
+    (isNew ? '' : '<p class="tiny" style="margin:4px 0 0">Renaming doesn\'t change past scans. They stay under the old site name.</p>') +
+    '<label class="field"><span>Remarks</span><input id="sR" value="' + esc(s.remarks) + '"></label></div>' +
+    '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    b.disabled = true;
+    try { A.master = await call('saveSite', { row: s.row, name: $('#sN', ov).value, remarks: $('#sR', ov).value }); refreshAdminData(); ov.remove(); renderMaster(); toast(isNew ? 'Site added' : 'Site saved'); }
+    catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+
+async function loadUsers() {
+  try { A.users = await call('listUsers'); } catch (e) { toast(errMsg(e)); A.users = A.users || []; }
+  renderAdmin();
+}
+function renderSettings() {
+  const data = A.data, base = (data.appUrl || BOOT.appUrl || '').split('?')[0];
+  const links = [['Supervisor dashboard', base + '?admin=1'], ['ARMM scanner (for encoders)', base]];
+  const users = A.users || [];
+  $('#tab').innerHTML = '<div class="panel"><h2>Users <button class="btn dark" id="uAdd" style="margin-left:auto;text-transform:none;letter-spacing:0">+ Add user</button></h2>' +
+    '<p class="small muted" style="margin:0 0 10px"><b>Encoder</b>: records scans (optionally only for certain sites) and sees Daily, Weekly hours and QR badges. <b>Admin</b>: everything, including Payroll and Users &amp; settings. Every scan saves who recorded it.</p>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Sites</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead><tbody>' +
+    users.map((u, i) => '<tr><td><b>' + esc(u.username) + '</b></td><td>' + esc(u.name) + '</td><td>' + esc(u.role) + '</td><td class="small">' + (u.sites && u.sites.length ? esc(u.sites.join(', ')) : '<span class="muted">All sites</span>') + '</td>' +
+      '<td>' + (u.active ? '<span class="pill st-onsite"><span class="dot"></span>Active</span>' : '<span class="pill st-absent"><span class="dot"></span>Disabled</span>') + '</td>' +
+      '<td class="small muted">' + esc(u.lastLogin || '—') + '</td><td style="white-space:nowrap"><button class="btn" data-ue="' + i + '">Edit</button> <button class="btn" data-ur="' + i + '">Reset password</button>' + (S.user && u.username === S.user.username ? '' : ' <button class="btn danger" data-ud="' + i + '">Delete</button>') + '</td></tr>').join('') +
+    (users.length ? '' : '<tr><td colspan="7" class="muted small">No users yet.</td></tr>') + '</tbody></table></div></div>' +
+    '<div class="panel arch" style="margin-top:14px"><h2>Archive old records</h2>' +
+      '<p class="small" style="margin:0 0 8px">Saves a <b>full copy</b> of this spreadsheet in an <b>Archive</b> folder on Google Drive (next to this file). Then, in this live file, it deletes attendance scans, approved OT/adjustments and subcontractor fees <b>older than 3 months</b>. ' +
+      'Your Users, ManpowerList and SiteLocations are kept.</p>' +
+      '<div id="archBox"><button class="btn" id="archCheck">Check what will be archived</button></div>' +
+      (A.archLast ? '<p class="tiny" style="margin-top:8px">Last archive: ' + esc(A.archLast) + '</p>' : '') + '</div>' +
+    '<div class="set-grid" style="margin-top:14px">' +
+    '<div class="panel"><h2>My account</h2><p class="small">Signed in as <b>' + esc(S.user ? S.user.name : '') + '</b> (' + esc(S.user ? S.user.username : '') + ')</p><button class="btn" id="myPw">Change my password</button></div>' +
+    '<div class="panel setup-qr"><h2>Set up a phone</h2><p class="small" style="margin:0 0 8px">The encoder scans this with the <b>normal phone camera</b>, taps the link, and signs in. That\'s all.</p>' +
+      '<div class="sq-wrap"><div id="setupQr" class="sq"></div><div class="small"><b>' + esc(CFG.scannerUrl ? 'ARMM Live (live camera)' : 'ARMM') + '</b><br><span class="tiny" style="word-break:break-all">' + esc(CFG.scannerUrl || base) + '</span>' +
+      '<p style="margin:10px 0 0"><button class="btn" id="sqPrint">Print as a poster</button></p></div></div></div>' +
+    '<div class="panel"><h2>App links</h2>' + links.map(l => '<div class="small" style="font-weight:600;margin-top:8px">' + esc(l[0]) + '</div><div class="linkrow"><code>' + esc(l[1]) + '</code><button class="btn" data-u="' + esc(l[1]) + '">Copy</button></div>').join('') +
+      '<p class="note">Tip: in the spreadsheet use <b>ARMM → Point worker QR codes to the app</b> to update the links in ManpowerList.</p></div>' +
+  '</div>';
+  $('#uAdd').onclick = () => editUser(null);
+  $$('[data-ue]').forEach(b => b.onclick = () => editUser(users[+b.dataset.ue]));
+  $$('[data-ur]').forEach(b => b.onclick = () => resetPassword(users[+b.dataset.ur]));
+  $$('[data-ud]').forEach(b => b.onclick = async () => {
+    const u = users[+b.dataset.ud];
+    const ok = await confirmBox('Delete user "' + u.username + '"?', u.name + ' will no longer be able to sign in. Their past scans keep their username under Recorded By. ' +
+      'To block someone only for a while, use Edit and untick Active instead.', 'Delete user');
+    if (!ok) return;
+    b.disabled = true;
+    try { A.users = await call('deleteUser', u.username); renderSettings(); toast('User deleted'); }
+    catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+  $('#myPw').onclick = changeMyPassword;
+  $('#archCheck').onclick = archiveCheck;
+  drawQr($('#setupQr'), CFG.scannerUrl || base);
+  $('#sqPrint').onclick = () => printSetupPoster(CFG.scannerUrl || base);
+  $$('.linkrow .btn').forEach(b => b.onclick = () => copy(b.dataset.u));
+}
+function editUser(u) {
+  const isNew = !u; u = u || { username: '', name: '', role: 'Encoder', sites: [], active: true };
+  const sites = A.data.sites || [];
+  const has = s => (u.sites || []).map(norm).indexOf(norm(s)) >= 0;
+  const ov = modal('<h3 style="font-size:18px">' + (isNew ? 'Add user' : 'Edit ' + esc(u.username)) + '</h3>' +
+    '<div style="text-align:left">' +
+    (isNew ? '<label class="field"><span>Username</span><input id="uU" autocapitalize="none" spellcheck="false" placeholder="e.g. juan.cruz"></label>' : '') +
+    '<label class="field"><span>Full name</span><input id="uN" value="' + esc(u.name) + '"></label>' +
+    '<label class="field"><span>Role</span><select id="uR">' + CFG.roles.map(r => '<option' + (r === u.role ? ' selected' : '') + '>' + r + '</option>').join('') + '</select></label>' +
+    '<div class="field"><span>Sites this user can record for (none ticked = all sites)</span><div class="chk">' +
+      sites.map((s, i) => '<label><input type="checkbox" data-site="' + i + '"' + (has(s) ? ' checked' : '') + '> ' + esc(s) + '</label>').join('') + '</div></div>' +
+    (isNew ? '' : '<label class="chk1"><input type="checkbox" id="uA"' + (u.active ? ' checked' : '') + '> Active (untick to block sign-in)</label>') +
+    '<label class="field"><span>' + (isNew ? 'Password (at least 6 characters)' : 'New password (leave blank to keep the current one)') + '</span><input id="uP" type="text" autocomplete="new-password"></label>' +
+    '</div><div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.querySelector('.ov-card').style.maxWidth = '440px';
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    b.disabled = true;
+    try {
+      A.users = await call('saveUser', {
+        isNew, username: isNew ? $('#uU', ov).value : u.username, name: $('#uN', ov).value, role: $('#uR', ov).value,
+        sites: $$('[data-site]', ov).filter(x => x.checked).map(x => sites[+x.dataset.site]),
+        active: isNew ? true : $('#uA', ov).checked, password: $('#uP', ov).value
+      });
+      ov.remove(); renderSettings(); toast('User saved');
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+/** Admin sets a new password for a user (e.g. an Encoder who forgot theirs). They are signed out everywhere. */
+function resetPassword(u) {
+  const ov = modal('<h3 style="font-size:18px">Reset password</h3><p class="small muted">' + esc(u.name) + ' (' + esc(u.username) + ') will use this new password and be signed out of other devices.</p>' +
+    '<div style="text-align:left"><label class="field"><span>New password (at least 6 characters)</span><input id="rP" type="text" autocomplete="new-password"></label></div>' +
+    '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Reset</button></div>');
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    const pw = $('#rP', ov).value;
+    if (pw.length < 6) return toast('Password must be at least 6 characters');
+    b.disabled = true;
+    try {
+      A.users = await call('saveUser', { username: u.username, name: u.name, role: u.role, sites: u.sites || [], active: u.active, password: pw });
+      ov.remove(); renderSettings(); toast('Password reset for ' + u.username);
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+async function archiveCheck() {
+  const box = $('#archBox');
+  box.innerHTML = '<div class="small muted">Checking…</div>';
+  try {
+    const p = await call('getArchivePreview');
+    A.archLast = p.last;
+    const total = p.counts.reduce((s, x) => s + x.rows, 0);
+    const label = { AttendanceData: 'Attendance scans', PayrollAdjustments: 'Approved OT / adjustments', SubconFees: 'Subcontractor fees' };
+    box.innerHTML = '<table class="small" style="margin:4px 0 10px"><thead><tr><th>Records older than ' + esc(p.cutoff) + '</th><th class="num">To archive</th><th class="num">Total now</th></tr></thead><tbody>' +
+      p.counts.map(x => '<tr><td>' + esc(label[x.sheet] || x.sheet) + ' <span class="tiny">(' + esc(x.sheet) + ')</span></td><td class="num tnum"><b>' + x.rows + '</b></td><td class="num tnum">' + x.total + '</td></tr>').join('') + '</tbody></table>' +
+      (total ? '<div class="msg warn" style="margin:0 0 10px">' + total + ' rows will be <b>deleted from this live file</b> after the copy is saved and checked. This can\'t be undone here, but everything stays in the archive copy.</div>' +
+        '<div class="bar" style="margin:0"><input id="archWord" class="search" style="min-width:0;width:170px" placeholder="Type ARCHIVE" autocomplete="off"><button class="btn danger" id="archGo">Archive now</button><button class="btn" id="archCancel">Cancel</button></div>'
+        : '<p class="small" style="color:var(--in)">✓ Nothing older than ' + esc(p.cutoff) + '. No need to archive yet.</p>');
+    if ($('#archGo')) {
+      $('#archCancel').onclick = renderSettings;
+      $('#archGo').onclick = async () => {
+        if ($('#archWord').value.trim().toUpperCase() !== 'ARCHIVE') return toast('Type ARCHIVE to confirm');
+        const b = $('#archGo'); b.disabled = true; b.textContent = 'Archiving… (can take a minute)';
+        try {
+          const r = await call('archiveOldRecords', 'ARCHIVE');
+          if (r.nothing) { box.innerHTML = '<p class="small">Nothing to archive.</p>'; return; }
+          box.innerHTML = '<div class="msg ok" style="margin:0">✓ Archive saved and old records removed.</div>' +
+            '<p class="small">Copy: <a href="' + esc(r.copyUrl) + '" target="_blank" rel="noopener">' + esc(r.copyName) + '</a><br>Folder: <a href="' + esc(r.folderUrl) + '" target="_blank" rel="noopener">Archive</a></p>' +
+            '<p class="small">Deleted: ' + Object.keys(r.deleted).map(k => (label[k] || k) + ' ' + r.deleted[k]).join(' · ') + '</p>';
+          refreshAdminData();
+        } catch (err) { b.disabled = false; b.textContent = 'Archive now'; toast(errMsg(err)); }
+      };
+    }
+  } catch (err) { box.innerHTML = '<div class="msg err">' + esc(errMsg(err)) + '</div>'; }
+}
+/** A one-page poster for the site office: scan with the phone camera to open ARMM. */
+function printSetupPoster(link) {
+  const ov = document.createElement('div'); ov.className = 'poster';
+  ov.innerHTML = '<div class="pst-in"><div class="pst-head">' + logoImg() + '<div><div class="pst-t">ARMM</div><div class="pst-s">AR4Z Manpower Monitoring</div></div></div>' +
+    '<h1>Set up ARMM on your phone</h1><div class="pst-qr" id="pstQr"></div>' +
+    '<ol><li>Open the <b>Camera</b> and point it at this QR.</li><li>Tap the link that appears.</li><li>Sign in with the username and password from the office.</li>' +
+    '<li>Optional: <b>Share → Add to Home Screen</b> (iPhone) or <b>⋮ → Add to Home screen</b> (Android).</li></ol>' +
+    '<p class="pst-l">' + esc(link) + '</p><button class="btn dark noprint" id="pstClose">Close</button></div>';
+  document.body.appendChild(ov);
+  drawQr($('#pstQr'), link);
+  $('#pstClose').onclick = () => ov.remove();
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
+}
+function changeMyPassword() {
+  const ov = modal('<h3 style="font-size:18px">Change my password</h3><div style="text-align:left">' +
+    '<label class="field"><span>Current password</span><input id="pO" type="password" autocomplete="current-password"></label>' +
+    '<label class="field"><span>New password (at least 6 characters)</span><input id="pN" type="password" autocomplete="new-password"></label></div>' +
+    '<div class="ov-actions"><button data-a="0">Cancel</button><button class="primary" data-a="1">Save</button></div>');
+  ov.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.a === '0') return ov.remove();
+    b.disabled = true;
+    try { const r = await call('changePassword', $('#pO', ov).value, $('#pN', ov).value); setSession(r.token, S.user); ov.remove(); toast('Password changed'); }
+    catch (err) { b.disabled = false; toast(errMsg(err)); }
+  });
+}
+
+/* ===================== DEMO DATA (preview only) ===================== */
+const Demo = (() => {
+  const STAFF = [['Ramon Villanueva', 'Mason'], ['Joel Bautista', 'Carpenter'], ['Arnel Santos', 'Site Worker 2'], ['Dennis Ramos', 'Welder'],
+    ['Mark Anthony Reyes', 'Painter'], ['Jerome Castillo', 'Painter'], ['Ricky Mendoza', 'Mason'], ['Noel Aquino', 'Site Worker 1'],
+    ['Paolo Garcia', 'Carpenter'], ['Rodel Navarro', 'Site Worker 2'], ['Edwin Flores', 'Painter'], ['Christian Torres', 'Mason'],
+    ['Lito Fernandez', 'Site Worker 1'], ['Gina Lopez', 'Office'], ['Jayson Cruz', 'Electrician'], ['Ronald Pascual', 'Painter']];
+  const SITES = ['B4L13_MONTEBELLO', 'PASCAM TAPAWAN', 'OFFICE / ADMIN', 'ALTA MONTE', 'ALTEZZA -DEPARO', 'B3-4A_MONTEBELLO'];
+  const HOME = [3, 3, 4, 0, 3, 4, 0, 5, 4, 5, 3, 0, 1, 2, 4, 5];
+  const RATE = [800, 800, 675, 875, 800, 600, 800, 550, 800, 550, 800, 800, 550, 500, 700, 800];
+  const staffFull = () => STAFF.map((s, i) => ({ no: i + 1, name: s[0], designation: s[1], rate: RATE[i],
+    hourly: Math.round(RATE[i] / 8 * 2) / 2, otRate: Math.round(RATE[i] / 8 * 1.25 * 2) / 2 }));
+  let adjs = [], subs = [];
+  const users = [
+    { username: 'admin', name: 'Office Admin', role: 'Admin', sites: [], active: true, pw: 'admin123', lastLogin: '' },
+    { username: 'encoder', name: 'Juan Dela Cruz', role: 'Encoder', sites: ['ALTA MONTE', 'ALTEZZA -DEPARO'], active: true, pw: 'site123', lastLogin: '' }];
+  const auth = (token, role) => {
+    const u = users.find(x => 'demo.' + x.username === token && x.active);
+    if (!u) throw new Error('SIGNIN: Please sign in.');
+    if (role === 'Admin' && u.role !== 'Admin') throw new Error('Only Admin users can do this.');
+    return u;
+  };
+  const pub = u => ({ username: u.username, name: u.name, role: u.role, sites: u.sites });
+  let seed = 7;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const recs = [];
+  const mk = (date, min, name, type, site) => {
+    const d = new Date(date); d.setHours(0, 0, 0, 0); d.setMinutes(min); d.setSeconds(Math.floor(rnd() * 60));
+    return { ts: d.getTime(), day: ymd(d), time: pad(d.getHours()) + ':' + pad(d.getMinutes()), time12: to12(pad(d.getHours()) + ':' + pad(d.getMinutes())), name, type, site };
+  };
+  const now = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const date = addDays(now, -i);
+    if (date.getDay() === 0) continue;
+    STAFF.forEach((s, k) => {
+      if (rnd() < 0.08) return;
+      const site = SITES[HOME[k]];
+      const inM = 7 * 60 + Math.floor(rnd() * (rnd() < 0.1 ? 75 : 35)), outM = 17 * 60 + Math.floor(rnd() * 25);
+      const day = [mk(date, inM, s[0], 'IN', site)];
+      if (rnd() > 0.04 || i === 0) day.push(mk(date, outM, s[0], 'OUT', site));
+      if (k === 4 && i === 3) day[1] = mk(date, 12 * 60 + 40, s[0], 'OUT', site);   // a short day
+      if (k === 6 && i === 2) day.length = 1;                                          // a missing OUT
+      if (k === 1 && i === 4) day[1] = mk(date, 21 * 60 + 35, s[0], 'OUT', site);   // a long day (possible OT)
+      if (k % 3 === 0 && rnd() < 0.6) { day.push(mk(date, outM + 2, s[0], 'OT-IN', site)); day.push(mk(date, outM + 90 + Math.floor(rnd() * 90), s[0], 'OT-OUT', site)); }
+      day.forEach(r => { if (r.ts <= now.getTime()) recs.push(r); });
+    });
+  }
+  recs.sort((a, b) => a.ts - b.ts);
+  const today = () => ymd(new Date());
+  return {
+    login(u, p) {
+      const x = users.find(y => y.username === String(u).toLowerCase() && y.active);
+      if (!x || x.pw !== p) throw new Error('Wrong username or password.');
+      x.lastLogin = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      return { token: 'demo.' + x.username, user: pub(x) };
+    },
+    changePassword(t, o, n) { const u = auth(t); if (u.pw !== o) throw new Error('Current password is wrong.'); if (String(n).length < 6) throw new Error('Password must be at least 6 characters.'); u.pw = n; return { token: t }; },
+    getWorkerData(t, name, badge) {
+      const u = auth(t);
+      if (badge) {
+        const m = String(badge).match(/badge=demo\.([^&]+)/);
+        if (!m) throw new Error('That QR code is not an ARMM worker badge.');
+        name = decodeURIComponent(m[1]);
+      }
+      const sites = u.sites.length ? SITES.filter(s => u.sites.indexOf(s) >= 0) : SITES;
+      const base = { sites, today: today(), user: pub(u) };
+      if (!name) return Object.assign(base, { staff: STAFF.map(s => ({ name: s[0], designation: s[1] })) });
+      const st = STAFF.find(s => norm(s[0]) === norm(name));
+      if (!st) return Object.assign(base, { error: 'This name is not in the ManpowerList: "' + name + '".' });
+      const mine = recs.filter(r => norm(r.name) === norm(name));
+      return Object.assign(base, { worker: { name: st[0], designation: st[1] }, todayRecords: mine.filter(r => r.day === today()), lastSite: mine.length ? mine[mine.length - 1].site : '' });
+    },
+    submitAttendance(t, p) {
+      const u = auth(t);
+      if (u.sites.length && u.sites.indexOf(p.site) < 0) throw new Error('Choose one of your construction sites.');
+      const n = new Date(), tm = pad(n.getHours()) + ':' + pad(n.getMinutes());
+      const dup = recs.filter(r => norm(r.name) === norm(p.name) && r.type === p.type && n - r.ts < 600000).pop();
+      if (dup) return { ok: false, duplicate: true, message: p.type + ' was already recorded at ' + dup.time12 + '. No need to scan again.' };
+      const r = { ts: n.getTime(), day: ymd(n), time: tm, time12: to12(tm), name: p.name, type: p.type, site: p.site, by: u.username };
+      recs.push(r); return { ok: true, record: r };
+    },
+    getAdminData(t, from, to) {
+      const u = auth(t);
+      return { staff: STAFF.map((s, i) => ({ no: i + 1, name: s[0], designation: s[1], badge: BOOT.appUrl + '?badge=demo.' + encodeURIComponent(s[0]) })), sites: SITES, today: today(), appUrl: BOOT.appUrl, user: pub(u),
+        records: recs.filter(r => r.day >= from && r.day <= to) };
+    },
+    listUsers(t) { auth(t, 'Admin'); return users.map(u => Object.assign(pub(u), { active: u.active, lastLogin: u.lastLogin })); },
+    saveUser(t, x) {
+      const me = auth(t, 'Admin');
+      const un = String(x.username || '').trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,30}$/.test(un)) throw new Error('Username: 3–30 letters, numbers, dot, dash or underscore.');
+      let u = users.find(y => y.username === un);
+      if (x.isNew && u) throw new Error('That username is already taken.');
+      if (!u && !x.password) throw new Error('Set a password for the new user.');
+      if (x.password && x.password.length < 6) throw new Error('Password must be at least 6 characters.');
+      if (u && u === me && (x.role !== 'Admin' || x.active === false)) throw new Error('You cannot remove your own Admin access.');
+      if (!u) { u = { username: un, lastLogin: '' }; users.push(u); }
+      Object.assign(u, { name: x.name, role: x.role, sites: x.sites || [], active: x.active !== false });
+      if (x.password) u.pw = x.password;
+      return this.listUsers(t);
+    },
+    deleteUser(t, un) {
+      const me = auth(t, 'Admin');
+      if (un === me.username) throw new Error('You cannot delete your own account.');
+      const i = users.findIndex(u => u.username === un);
+      if (i < 0) throw new Error('User not found.');
+      if (users[i].role === 'Admin' && users.filter(u => u.role === 'Admin' && u.active).length <= 1) throw new Error('Keep at least one active Admin.');
+      users.splice(i, 1);
+      return this.listUsers(t);
+    },
+    getPayrollData(t, week) {
+      auth(t, 'Admin');
+      const end = ymd(addDays(parseYmd(week), 6));
+      if (!adjs.length && week === ymd(weekStartOf(addDays(new Date(), -7)))) {
+        adjs = [{ week, name: 'Ramon Villanueva', date: ymd(addDays(parseYmd(week), 2)), otHours: 2, amount: 0, note: '' },
+          { week, name: 'Gina Lopez', date: '', otHours: 0, amount: 1000, note: 'Allowance', site: 'OFFICE / ADMIN' }];
+        subs = [{ week, id: 's1', site: 'ALTA MONTE', contractor: 'JM Tiling Works', amount: 15000, note: 'Tiling 2nd floor' },
+          { week, id: 's2', site: 'B4L13_MONTEBELLO', contractor: 'RC Electrical', amount: 8500, note: 'Rough-in' }];
+      }
+      return { staff: staffFull(), sites: SITES, today: today(), records: recs.filter(r => r.day >= week && r.day <= end),
+        adjustments: adjs.filter(a => a.week === week), subcons: subs.filter(s => s.week === week) };
+    },
+    saveAdjustment(t, a) {
+      auth(t, 'Admin');
+      if (a.amount && !a.site) throw new Error('Choose which site the adjustment is charged to.');
+      adjs = adjs.filter(x => !(x.week === a.week && norm(x.name) === norm(a.name) && x.date === (a.date || '')));
+      if (a.otHours || a.amount || a.note) adjs.push({ week: a.week, name: a.name, date: a.date || '', otHours: Number(a.otHours) || 0, amount: Number(a.amount) || 0, note: a.note || '', site: a.site || '' });
+      return adjs.filter(x => x.week === a.week);
+    },
+    saveSubcon(t, s) {
+      auth(t, 'Admin');
+      if (!s.site) throw new Error('Choose a site.');
+      if (!String(s.contractor || '').trim()) throw new Error('Enter the subcontractor name.');
+      if (!s.amount) throw new Error('Enter the fee amount.');
+      subs = subs.filter(x => x.id !== s.id);
+      subs.push({ week: s.week, id: s.id || String(Date.now()), site: s.site, contractor: s.contractor.trim(), amount: s.amount, note: s.note || '' });
+      return subs.filter(x => x.week === s.week);
+    },
+    getMasterData(t) {
+      auth(t, 'Admin');
+      return { appUrl: BOOT.appUrl, staff: staffFull().map((s, i) => Object.assign(s, { row: i + 2, link: i < 12 ? BOOT.appUrl + '?badge=demo.' + encodeURIComponent(s.name) : 'https://docs.google.com/forms/…', otFormula: true, hourlyFormula: true })),
+        sites: SITES.map((n, i) => ({ row: i + 3, no: i + 1, name: n, remarks: '' })) };
+    },
+    saveWorker(t, w) {
+      auth(t, 'Admin');
+      if (!String(w.name || '').trim()) throw new Error('Enter the full name.');
+      if (!(w.rate > 0)) throw new Error('Enter the daily rate.');
+      const i = w.row ? w.row - 2 : STAFF.length;
+      if (STAFF.some((s, k) => k !== i && norm(s[0]) === norm(w.name))) throw new Error('"' + w.name + '" is already in the ManpowerList.');
+      STAFF[i] = [w.name.trim(), w.designation || '']; RATE[i] = w.rate; HOME[i] = HOME[i] == null ? 0 : HOME[i];
+      return this.getMasterData(t);
+    },
+    saveSite(t, s) {
+      auth(t, 'Admin');
+      if (!String(s.name || '').trim()) throw new Error('Enter the site name.');
+      if (s.row) SITES[s.row - 3] = s.name.trim(); else SITES.splice(SITES.length - 1, 0, s.name.trim());
+      return this.getMasterData(t);
+    },
+    deleteSite(t, row, name) {
+      auth(t, 'Admin');
+      const i = row - 3;
+      if (SITES[i] !== name) throw new Error('That site has moved or changed. Refresh the page and try again.');
+      if (recs.some(r => r.site === name && r.ts > Date.now() - 14 * 864e5)) throw new Error('"' + name + '" has scans in the last 14 days, so it can\'t be deleted yet. Delete it after its payroll is finished.');
+      SITES.splice(i, 1);
+      return this.getMasterData(t);
+    },
+    getArchivePreview(t) {
+      auth(t, 'Admin');
+      const cut = new Date(); cut.setHours(0, 0, 0, 0); cut.setMonth(cut.getMonth() - 3);
+      return { cutoff: cut.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), months: 3, folder: 'Archive', last: '',
+        counts: [{ sheet: 'AttendanceData', rows: 4812, total: 7395 }, { sheet: 'PayrollAdjustments', rows: 6, total: 9 }, { sheet: 'SubconFees', rows: 0, total: 2 }] };
+    },
+    archiveOldRecords(t, w) {
+      auth(t, 'Admin');
+      if (w !== 'ARCHIVE') throw new Error('Type ARCHIVE to confirm.');
+      return { ok: true, copyUrl: 'https://docs.google.com/spreadsheets/', copyName: 'Attendance – Archive (sample)', folderUrl: 'https://drive.google.com/',
+        deleted: { AttendanceData: 4812, PayrollAdjustments: 6, SubconFees: 0 }, cutoff: '' };
+    },
+    deleteSubcon(t, week, id) { auth(t, 'Admin'); subs = subs.filter(x => x.id !== id); return subs.filter(x => x.week === week); }
+  };
+})();
+
+/* ===================== router ===================== */
+function route(mode) {
+  const p = BOOT.params || {};
+  if (p.outside && !mode) return showOutside();
+  mode = mode || S.mode || (p.admin ? 'admin' : 'scan');
+  S.mode = mode;
+  stopScanner();
+  if (DEMO) $$('#demoBar button').forEach(b => b.classList.toggle('on', b.dataset.demo === mode));
+  if (mode === 'outside') return showOutside();
+  if (!S.token) return showLogin();
+  if (mode === 'admin') return loadAdmin(true);
+  if (mode === 'worker') return showWorker('', BOOT.appUrl + '?badge=demo.Ramon%20Villanueva');
+  if (mode === 'picker') return showPicker();
+  return showScanner();
+}
+if (REMOTE) {
+  loading('Connecting to ARMM…');
+  api('getConfig').then(c => { BOOT.appUrl = c.appUrl || REMOTE; Object.assign(CFG, c.config || {}); route(); })
+    .catch(e => { $('#app').innerHTML = '<div class="login"><div class="panel"><div class="msg err">' + esc(errMsg(e)) + '</div><button class="btn" onclick="location.reload()">Try again</button></div></div>'; });
+} else if (DEMO) {
+  $('#demoBar').hidden = false;
+  $$('#demoBar button').forEach(b => b.onclick = () => { clearInterval(A.timer); route(b.dataset.demo); });
+  route('scan');
+} else route();
+</script>
+</body>
+</html>
