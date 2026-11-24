@@ -375,7 +375,7 @@
 <div id="app"></div>
 
 <script>
-  // ▼ ARMM Live: paste your Apps Script web app link between the quotes (Deploy → Manage deployments → Web app URL, ends in /exec)
+  // ▼ ARMM Live: your Apps Script web app link (Deploy → Manage deployments → Web app URL, ends in /exec)
   window.ARMM_REMOTE_URL = 'https://script.google.com/macros/s/AKfycbwWxIUQ7vJUmK7agvBbR3568OQLepMRdlE7JGibC2eWx_1TMgRsCU0xMH5u8--nx46B/exec';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
@@ -392,15 +392,16 @@ try { BOOT = JSON.parse(document.getElementById('boot').textContent); } catch (e
 const DEMO = !REMOTE && (!BOOT || typeof google === 'undefined' || !google.script);
 if (REMOTE) {
   const q = {}; new URLSearchParams(location.search).forEach((v, k) => { q[k] = v; });
-  BOOT = { params: q, appUrl: REMOTE, config: { types: ['IN','OUT','OT-IN','OT-OUT'], lateAfter: '08:00', weekStart: 6, saveGps: false } };
+  BOOT = { params: q, appUrl: REMOTE, config: { types: ['IN','OUT','OT-IN','OT-OUT'], lateAfter: '08:20', weekStart: 6, saveGps: false } };
 }
 if (!BOOT) BOOT = { params: {}, appUrl: 'https://script.google.com/macros/s/YOUR-DEPLOYMENT-ID/exec',
-  config: { types: ['IN','OUT','OT-IN','OT-OUT'], lateAfter: '08:00', weekStart: 6, saveGps: false } };
+  config: { types: ['IN','OUT','OT-IN','OT-OUT'], lateAfter: '08:20', weekStart: 6, saveGps: false } };
 if (!BOOT.config.roles) BOOT.config.roles = ['Admin', 'Encoder'];
 if (BOOT.config.allowNameSearch == null) BOOT.config.allowNameSearch = true;
 if (!BOOT.config.pay) BOOT.config.pay = { ROUND_HOURS_TO: 0.25, FULL_DAY_HOURS: 8, HOURS_PER_DAY: 8, LUNCH_START: '12:00', LUNCH_END: '13:00', POSSIBLE_OT_AFTER: 10.5 };
 if (BOOT.config.pay.POSSIBLE_OT_AFTER == null) BOOT.config.pay.POSSIBLE_OT_AFTER = 10.5;
 if (!BOOT.config.pay.WORK_START) Object.assign(BOOT.config.pay, { WORK_START: '08:00', WORK_END: '17:00', HALF_DAY_IN_AFTER: '12:00', GRACE_MINUTES: 20 });
+if (BOOT.config.pay.OFFSET_UNTIL === undefined) BOOT.config.pay.OFFSET_UNTIL = '17:30';
 const CFG = BOOT.config;
 
 function api(fn, ...args) {
@@ -534,18 +535,22 @@ function confirmBox(title, text, okLabel) {
 }
 
 /**
- * Regular hours rendered in a day: only the time inside the work day (08:00–17:00) counts, minus lunch (12:00–13:00),
+ * Regular hours rendered in a day: only the time inside the work day (08:00–17:00) counts, minus lunch (12:00–13:00).
+ * IN within the grace (8:01–8:20) may make up the minutes until OFFSET_UNTIL (17:30); IN after the grace is late (no make-up). Max 8 h,
  * rounded to the nearest 0.25 h. Returns {work, kind}: full (8 h), hlf (timed in from 12:00 = half day), und (anything less), none.
  */
 function dayRule(inTime, outTime) {
   const P = CFG.pay, m = minOf;
   if (!inTime || !outTime) return { work: 0, kind: 'none' };
-  const g = Number(P.GRACE_MINUTES) || 0;   // grace applies to IN only: IN up to N min late counts as 8:00
-  const inM = m(inTime) <= m(P.WORK_START) + g ? m(P.WORK_START) : m(inTime);
-  const outM = m(outTime);   // no grace on OUT: leaving before 5:00 PM counts the actual time
-  const s = Math.max(inM, m(P.WORK_START)), e = Math.min(outM, m(P.WORK_END));
+  const g = Number(P.GRACE_MINUTES) || 0;   // grace: IN up to N min after 8:00 is not late
+  const inM = m(inTime), outM = m(outTime);   // actual times; no grace on OUT
+  // IN within the grace (8:01–8:20): not late, may make up the minutes by staying until OFFSET_UNTIL (5:30 PM).
+  // IN after the grace: late, no make-up; only time inside 8:00–5:00 counts (deduction per hour).
+  const inGrace = inM > m(P.WORK_START) && inM <= m(P.WORK_START) + g;
+  const endLimit = inGrace && P.OFFSET_UNTIL ? Math.max(m(P.WORK_END), m(P.OFFSET_UNTIL)) : m(P.WORK_END);
+  const s = Math.max(inM, m(P.WORK_START)), e = Math.min(outM, endLimit);
   const lunch = Math.max(0, Math.min(e, m(P.LUNCH_END)) - Math.max(s, m(P.LUNCH_START)));
-  const work = roundTo(Math.max(0, e - s - lunch) / 60, P.ROUND_HOURS_TO);
+  const work = Math.min(P.FULL_DAY_HOURS, roundTo(Math.max(0, e - s - lunch) / 60, P.ROUND_HOURS_TO));
   const kind = work <= 0 ? 'none' : work >= P.FULL_DAY_HOURS ? 'full' : m(inTime) >= m(P.HALF_DAY_IN_AFTER) ? 'hlf' : 'und';
   return { work, kind };
 }
@@ -1074,7 +1079,7 @@ function renderToday() {
     '<div class="kpis">' + kpis.map(k => '<button class="kpi' + (A.filter === k[0] ? ' on' : '') + '" data-f="' + k[0] + '"><div class="n tnum" style="color:' + k[3] + '">' + k[2] + '</div><div class="l">' + k[1] + '</div></button>').join('') + '</div>' +
     (siteCards ? '<div class="sites">' + siteCards + '</div>' : '<div class="panel" style="margin-top:14px"><p class="muted center">No scans recorded for this day.</p></div>') +
     '<div class="grid2"><div class="panel"><h2>Workers <input class="search" id="tq" style="margin-left:auto;width:220px;padding:6px 10px;font-size:13px;text-transform:none;letter-spacing:0" placeholder="Search name or site" value="' + esc(A.q) + '"></h2><div class="tbl-wrap">' + tbl + '</div>' +
-    '<p class="note">Regular day 8:00 AM – 5:00 PM, lunch 12–1. <b style="color:#b91c1c">UND</b> = under 8 h (paid per hour) · <b style="color:#c2410c">HLF</b> = timed in from 12:00 (half day).</p></div>' +
+    '<p class="note">Regular day 8:00 AM – 5:00 PM, lunch 12–1. IN by 8:20 may make up the minutes until 5:30 PM; after 8:20 is late (deducted per hour). <b style="color:#b91c1c">UND</b> = under 8 h (paid per hour) · <b style="color:#c2410c">HLF</b> = timed in from 12:00 (half day).</p></div>' +
     '<div class="panel feed"><h2>Latest scans</h2>' + (feed || '<p class="muted small">None yet.</p>') + '</div></div>';
   wireDateBar(1);
   $$('.kpi').forEach(b => b.onclick = () => { A.filter = A.filter === b.dataset.f ? 'all' : b.dataset.f; renderToday(); });
@@ -1134,7 +1139,7 @@ function renderWeek() {
   $('#tab').innerHTML = dateBar('<select id="wSite"><option value="">All sites</option>' + sites.map(s => '<option' + (s === A.wkSite ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
       '<button class="btn" id="wCopy">Copy for Sheets</button><button class="btn dark" id="wCsv">Download CSV</button>') +
     '<div class="small muted" style="margin:-6px 0 12px">Payroll week ' + esc(fmtDay(days[0], { day: 'numeric', month: 'short' })) + ' – ' + esc(fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })) + '</div>' +
-    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Regular day 8:00 AM – 5:00 PM, lunch 12–1 (8 h). <b style="color:var(--in)">✓</b> full day · <b style="color:#dc2626">UND</b> undertime (paid per hour rendered) · <b style="color:#ea580c">HLF</b> half day (timed in from 12:00) · <b style="color:var(--out)">!</b> no hours (absent or missing OUT). ' +
+    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Regular day 8:00 AM – 5:00 PM, lunch 12–1 (8 h); IN by 8:20 may make up until 5:30 PM, after 8:20 is late (deducted per hour). <b style="color:var(--in)">✓</b> full day · <b style="color:#dc2626">UND</b> undertime (paid per hour rendered) · <b style="color:#ea580c">HLF</b> half day (timed in from 12:00) · <b style="color:var(--out)">!</b> no hours (absent or missing OUT). ' +
     'Hover or tap-and-hold a mark to see the hours. Download CSV still has the exact hours.</p></div>';
   wireDateBar(7);
   $('#wSite').onchange = e => { A.wkSite = e.target.value; renderWeek(); };
@@ -1261,7 +1266,7 @@ function renderPayroll() {
     (A.payFilter === 'approval' ? approvalPanel(pending) : '') +
     (A.payFilter ? '<p class="small noprint" style="margin:10px 0 0"><b>Filtered:</b> ' + (A.payFilter === 'approval' ? 'workers that need approval' : 'workers with approved OT') + ' · <button class="linkbtn" id="pfClear">Show everyone</button></p>' : '') +
     '<div class="panel" style="margin-top:14px"><div class="tbl-wrap">' + tbl + '</div>' +
-    '<p class="note noprint">Hours = time rendered inside the regular day (' + to12(P.WORK_START) + '–' + to12(P.WORK_END) + '), lunch ' + to12(P.LUNCH_START) + '–' + to12(P.LUNCH_END) + ' excluded, from the first IN to the first OUT at the same site, rounded to ' + P.ROUND_HOURS_TO + ' h. ' + P.FULL_DAY_HOURS + ' h = full daily rate. Less = hourly rate × hours rendered (UND), or HLF when timed in from ' + to12(P.HALF_DAY_IN_AFTER) + '. ' +
+    '<p class="note noprint">Hours = time rendered inside the regular day (' + to12(P.WORK_START) + '–' + to12(P.WORK_END) + '), lunch ' + to12(P.LUNCH_START) + '–' + to12(P.LUNCH_END) + ' excluded, from the first IN to the first OUT at the same site, rounded to ' + P.ROUND_HOURS_TO + ' h. IN within ' + (P.GRACE_MINUTES || 0) + ' min after ' + to12(P.WORK_START) + ' may make up the minutes until ' + to12(P.OFFSET_UNTIL || P.WORK_END) + '; later IN is late and deducted per hour. ' + P.FULL_DAY_HOURS + ' h = full daily rate. Less = hourly rate × hours rendered (UND), or HLF when timed in from ' + to12(P.HALF_DAY_IN_AFTER) + '. ' +
     'OT is only paid when approved. Click a day to approve OT, or the Adj. column for allowances or deductions (use a minus sign for deductions). These are saved in the PayrollAdjustments tab of your sheet.</p></div>' +
     siteSummaryPanel(ss, grand, subTotal) +
     '<div class="print-only-block sign-block"><div><span></span>Prepared by</div><div><span></span>Checked by</div><div><span></span>Approved by</div></div>';
