@@ -194,6 +194,10 @@
   .wk-ok{color:#16a34a;display:inline-block;vertical-align:middle}
   .wk-und{color:#dc2626;font-weight:800;font-size:13px;letter-spacing:.3px}
   .wk-bang{color:#dc2626;font-weight:900;font-size:18px;line-height:1}
+  .wk-hlf{color:#ea580c;font-weight:800;font-size:13px;letter-spacing:.3px}
+  .wk-site{display:block;font-size:10.5px;color:var(--ink2);margin-top:2px;max-width:96px;margin-left:auto;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .flag.hlf{background:#ffedd5;color:#c2410c}
+  .flag.und{background:#fee2e2;color:#b91c1c}
   .wk2 td.c-wd.wd2{background:#d9f0e1} .wk2 th.c-wd.wd2{background:#bfe5cc;color:#14532d}
   .wk2 .g1{background:#f4f5f7} .wk2 th.g1{background:#e2e5e9}
   .wk2 .g2{background:#e8ebee} .wk2 th.g2{background:#d4d9de}
@@ -207,7 +211,6 @@
   .daytbl .c-stat{background:#f2f4f6} .daytbl th.c-stat{background:#e5e8ec}
   .daytbl tr:hover td{filter:brightness(.97)}
   .daytbl tr:hover td.stk{filter:none}
-  .flag.und{background:#ffe7cc;color:#9a3412}
   /* main header stays on top while scrolling */
   .a-band{position:sticky;top:0;z-index:40}
   .a-band.compact .an-top span,.a-band.compact .an-sub{display:none}
@@ -395,6 +398,7 @@ if (!BOOT.config.roles) BOOT.config.roles = ['Admin', 'Encoder'];
 if (BOOT.config.allowNameSearch == null) BOOT.config.allowNameSearch = true;
 if (!BOOT.config.pay) BOOT.config.pay = { ROUND_HOURS_TO: 0.25, FULL_DAY_HOURS: 8, HOURS_PER_DAY: 8, LUNCH_START: '12:00', LUNCH_END: '13:00', POSSIBLE_OT_AFTER: 10.5 };
 if (BOOT.config.pay.POSSIBLE_OT_AFTER == null) BOOT.config.pay.POSSIBLE_OT_AFTER = 10.5;
+if (!BOOT.config.pay.WORK_START) Object.assign(BOOT.config.pay, { WORK_START: '08:00', WORK_END: '17:00', HALF_DAY_IN_AFTER: '12:00', GRACE_MINUTES: 20 });
 const CFG = BOOT.config;
 
 function api(fn, ...args) {
@@ -526,6 +530,22 @@ function confirmBox(title, text, okLabel) {
   });
 }
 
+/**
+ * Regular hours rendered in a day: only the time inside the work day (08:00–17:00) counts, minus lunch (12:00–13:00),
+ * rounded to the nearest 0.25 h. Returns {work, kind}: full (8 h), hlf (timed in from 12:00 = half day), und (anything less), none.
+ */
+function dayRule(inTime, outTime) {
+  const P = CFG.pay, m = minOf;
+  if (!inTime || !outTime) return { work: 0, kind: 'none' };
+  const g = Number(P.GRACE_MINUTES) || 0;   // optional grace: IN up to N min late / OUT up to N min early counts as on time
+  const inM = m(inTime) <= m(P.WORK_START) + g ? m(P.WORK_START) : m(inTime);
+  const outM = m(outTime) >= m(P.WORK_END) - g ? m(P.WORK_END) : m(outTime);
+  const s = Math.max(inM, m(P.WORK_START)), e = Math.min(outM, m(P.WORK_END));
+  const lunch = Math.max(0, Math.min(e, m(P.LUNCH_END)) - Math.max(s, m(P.LUNCH_START)));
+  const work = roundTo(Math.max(0, e - s - lunch) / 60, P.ROUND_HOURS_TO);
+  const kind = work <= 0 ? 'none' : work >= P.FULL_DAY_HOURS ? 'full' : m(inTime) >= m(P.HALF_DAY_IN_AFTER) ? 'hlf' : 'und';
+  return { work, kind };
+}
 /** Turns one worker's scans for one day into times, hours, status and flags. */
 function summarize(recs, isPast) {
   const s = { in: null, out: null, otIn: null, otOut: null, reg: 0, ot: 0, sites: [], flags: [], state: 'absent', last: null };
@@ -554,8 +574,9 @@ function summarize(recs, isPast) {
     s.state = openOt ? 'ot' : openReg ? 'onsite' : recs.length ? 'done' : 'absent';
   }
   if (s.in && s.in.time > CFG.lateAfter) s.flags.push('Late');
-  // Undertime: checked out with less than UNDERTIME_HOURS between IN and OUT
-  s.und = !!(s.in && s.out && !openReg && s.reg > 0 && s.reg < (CFG.undertimeHours || 9));
+  // Regular hours inside 08:00–17:00 (minus lunch) and the day's kind: full / hlf (half day) / und (undertime)
+  const dr = s.in && s.out && !openReg ? dayRule(s.in.time, s.out.time) : { work: 0, kind: 'none' };
+  s.work = dr.work; s.kind = dr.kind; s.und = dr.kind === 'und';
   s.site = s.last ? s.last.site : '';
   return s;
 }
@@ -1038,7 +1059,8 @@ function renderToday() {
       '<td class="c-in">' + t(r.in) + '</td><td class="c-out">' + t(r.out) + '</td><td class="c-otin">' + t(r.otIn) + '</td><td class="c-otout">' + t(r.otOut) + '</td>' +
       '<td class="num tnum">' + fmtH(r.ot) + '</td>' +
       '<td class="c-stat"><span class="pill ' + pillCls[r.state] + '"><span class="dot"></span>' + STATE_LABEL[r.state] + '</span> ' +
-      (r.und ? '<span class="flag und" title="Undertime: ' + fmtH(r.reg) + ' h between IN and OUT (under ' + (CFG.undertimeHours || 9) + ' h)">Und</span>' : '') +
+      (r.kind === 'und' ? '<span class="flag und" title="Undertime: ' + fmtH(r.work) + ' h rendered (8:00–5:00, lunch excluded)">UND</span>' : '') +
+      (r.kind === 'hlf' ? '<span class="flag hlf" title="Half day: timed in from 12:00 · ' + fmtH(r.work) + ' h rendered">HLF</span>' : '') +
       r.flags.map(x => '<span class="flag' + (/^No |without/.test(x) ? ' red' : '') + '">' + esc(x) + '</span>').join('') + '</td></tr>').join('') +
     '</tbody></table>' + (shown.length ? '' : '<p class="muted small center">Nobody matches this filter.</p>');
   const feed = data.records.filter(r => r.day === A.date).slice(-25).reverse().map(r =>
@@ -1049,7 +1071,7 @@ function renderToday() {
     '<div class="kpis">' + kpis.map(k => '<button class="kpi' + (A.filter === k[0] ? ' on' : '') + '" data-f="' + k[0] + '"><div class="n tnum" style="color:' + k[3] + '">' + k[2] + '</div><div class="l">' + k[1] + '</div></button>').join('') + '</div>' +
     (siteCards ? '<div class="sites">' + siteCards + '</div>' : '<div class="panel" style="margin-top:14px"><p class="muted center">No scans recorded for this day.</p></div>') +
     '<div class="grid2"><div class="panel"><h2>Workers <input class="search" id="tq" style="margin-left:auto;width:220px;padding:6px 10px;font-size:13px;text-transform:none;letter-spacing:0" placeholder="Search name or site" value="' + esc(A.q) + '"></h2><div class="tbl-wrap">' + tbl + '</div>' +
-    '<p class="note">Hours are clock time between scans (no break deduction). Your Payroll tab still does the official computation.</p></div>' +
+    '<p class="note">Regular day 8:00 AM – 5:00 PM, lunch 12–1. <b style="color:#b91c1c">UND</b> = under 8 h (paid per hour) · <b style="color:#c2410c">HLF</b> = timed in from 12:00 (half day).</p></div>' +
     '<div class="panel feed"><h2>Latest scans</h2>' + (feed || '<p class="muted small">None yet.</p>') + '</div></div>';
   wireDateBar(1);
   $$('.kpi').forEach(b => b.onclick = () => { A.filter = A.filter === b.dataset.f ? 'all' : b.dataset.f; renderToday(); });
@@ -1057,11 +1079,7 @@ function renderToday() {
 }
 
 /** Hours actually worked in a day: IN → OUT minus the lunch hour when it was worked through. */
-function workHours(c) {
-  if (!c || !c.in || !c.out || !(c.reg > 0)) return 0;
-  const P = PAY(), lunch = Math.max(0, Math.min(minOf(c.out.time), minOf(P.LUNCH_END)) - Math.max(minOf(c.in.time), minOf(P.LUNCH_START))) / 60;
-  return Math.max(0, c.reg - lunch);
-}
+function workHours(c) { return c ? (c.work || 0) : 0; }
 const WEEK_FULL_HOURS = 48, DAY_FULL_HOURS = 8;
 const CHECK = '<svg class="wk-ok" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 /** ✓ complete · Und under · ! zero.  full = hours needed for ✓ */
@@ -1098,21 +1116,22 @@ function renderWeek() {
     const sun = parseYmd(d).getDay() === 0;
     if (d > today || (!c && sun)) return '<span class="tiny">–</span>';
     if (!c) return mark(0, DAY_FULL_HOURS, 'Absent');
-    const info = fmtH(c.work) + ' h worked' + (c.ot > 0 ? ' + ' + fmtH(c.ot) + ' h OT' : '') + ' · ' + c.sites.join(', ') + (c.flags.length ? ' · ' + c.flags.join(', ') : '');
-    if (d === today && (c.state === 'onsite' || c.state === 'ot')) return '<span class="tiny" title="' + esc(info) + '">on site</span>';
-    return mark(c.work, DAY_FULL_HOURS, info);
+    const info = fmtH(c.work) + ' h rendered (8:00–5:00)' + (c.ot > 0 ? ' + ' + fmtH(c.ot) + ' h OT' : '') + (c.flags.length ? ' · ' + c.flags.join(', ') : '');
+    const site = '<span class="wk-site">' + esc(c.sites.join(', ')) + '</span>';
+    if (d === today && (c.state === 'onsite' || c.state === 'ot')) return '<span class="tiny" title="' + esc(info) + '">on site</span>' + site;
+    if (c.kind === 'hlf') return '<span class="wk-hlf" title="' + esc('Half day · ' + info) + '">HLF</span>' + site;
+    return mark(c.work, DAY_FULL_HOURS, info).replace('>Und<', '>UND<') + site;
   };
   const tbl = '<table class="wk wk2 frz"><thead><tr><th class="stk split">Name</th>' + days.map(th).join('') +
-    '<th class="num g1">Days</th><th class="g2" style="text-align:center">Reg hrs</th><th class="num g1">OT hrs</th></tr></thead><tbody>' +
+    '<th class="num g1">Days</th><th class="num g2">OT hrs</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="stk split"><b>' + esc(r.n.name) + '</b><br><span class="tiny">' + esc(r.n.designation) + '</span></td>' +
       r.cells.map((c, i) => '<td class="d ' + colCls(days[i], i) + '">' + dayCell(c, days[i]) + '</td>').join('') +
-      '<td class="num tnum g1">' + r.tot.days + '</td><td class="d g2">' + mark(r.tot.work, WEEK_FULL_HOURS, fmtH(r.tot.work) + ' h worked this week (complete = ' + WEEK_FULL_HOURS + ' h)') + '</td>' +
-      '<td class="num tnum g1">' + fmtH(r.tot.ot) + '</td></tr>').join('') +
-    '</tbody><tfoot><tr><td class="stk split">Present per day</td>' + dayTot.map((n, i) => '<td class="d tnum ' + colCls(days[i], i) + '">' + n + '</td>').join('') + '<td class="g1"></td><td class="g2"></td><td class="g1"></td></tr></tfoot></table>';
+      '<td class="num tnum g1">' + r.tot.days + '</td><td class="num tnum g2">' + fmtH(r.tot.ot) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td class="stk split">Present per day</td>' + dayTot.map((n, i) => '<td class="d tnum ' + colCls(days[i], i) + '">' + n + '</td>').join('') + '<td class="g1"></td><td class="g2"></td></tr></tfoot></table>';
   $('#tab').innerHTML = dateBar('<select id="wSite"><option value="">All sites</option>' + sites.map(s => '<option' + (s === A.wkSite ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
       '<button class="btn" id="wCopy">Copy for Sheets</button><button class="btn dark" id="wCsv">Download CSV</button>') +
     '<div class="small muted" style="margin:-6px 0 12px">Payroll week ' + esc(fmtDay(days[0], { day: 'numeric', month: 'short' })) + ' – ' + esc(fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })) + '</div>' +
-    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note"><b style="color:var(--in)">✓</b> complete (' + DAY_FULL_HOURS + ' h a day / ' + WEEK_FULL_HOURS + ' h for the week, lunch excluded) · <b style="color:var(--out)">Und</b> undertime · <b style="color:var(--out)">!</b> no hours (absent or missing OUT). ' +
+    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Regular day 8:00 AM – 5:00 PM, lunch 12–1 (8 h). <b style="color:var(--in)">✓</b> full day · <b style="color:#dc2626">UND</b> undertime (paid per hour rendered) · <b style="color:#ea580c">HLF</b> half day (timed in from 12:00) · <b style="color:var(--out)">!</b> no hours (absent or missing OUT). ' +
     'Hover or tap-and-hold a mark to see the hours. Download CSV still has the exact hours.</p></div>';
   wireDateBar(7);
   $('#wSite').onchange = e => { A.wkSite = e.target.value; renderWeek(); };
@@ -1149,15 +1168,12 @@ function payDay(recs, st) {
   if (!first) return recs.length ? { site: recs[0].site, hours: 0, pay: 0, days: 0, otReg: ot, flag: 'No IN', recs } : null;
   const out = recs.find(r => r.type === 'OUT' && r.ts > first.ts && norm(r.site) === norm(first.site));
   if (!out) return { site: first.site, in: first, hours: 0, pay: 0, days: 0, otReg: ot, flag: 'No OUT', recs };
-  const hours = roundTo((out.ts - first.ts) / 36e5, P.ROUND_HOURS_TO);
+  // Hours rendered inside 08:00–17:00, lunch excluded. 8 h = full daily rate; less = hourly rate × hours (UND / HLF)
+  const dr = dayRule(first.time, out.time);
+  const hours = dr.work;
   const days = Math.min(1, roundTo(hours / P.HOURS_PER_DAY, 0.25));
-  let pay, lunch = 0;
-  if (hours >= P.FULL_DAY_HOURS) pay = st.rate;
-  else {
-    lunch = roundTo(Math.max(0, Math.min(minOf(out.time), minOf(P.LUNCH_END)) - Math.max(minOf(first.time), minOf(P.LUNCH_START))) / 60, P.ROUND_HOURS_TO);
-    pay = Math.round(Math.max(0, hours - lunch) * st.hourly * 100) / 100;
-  }
-  return { site: first.site, in: first, out, hours, days, pay, lunch, otReg: ot, recs };
+  const pay = dr.kind === 'full' ? st.rate : Math.round(hours * st.hourly * 100) / 100;
+  return { site: first.site, in: first, out, hours, days, pay, lunch: 0, kind: dr.kind, otReg: ot, recs };
 }
 function otRegistered(recs) {
   let open = null, h = 0;
@@ -1217,7 +1233,8 @@ function renderPayroll() {
   const cell = (c, r, i) => {
     if (!c) return '<td class="d pc noprint ' + dayCls(days[i]) + '" data-r="' + r + '" data-i="' + i + '"><span class="tiny">–</span></td>';
     return '<td class="d pc noprint ' + dayCls(days[i]) + (c.need ? ' needs' : '') + '" data-r="' + r + '" data-i="' + i + '" title="' + (c.need ? esc(c.need.label) : 'Click for details / approve OT') + '">' +
-      (c.flag ? '<span class="flag red">' + esc(c.flag) + '</span>' : '<span class="h tnum">' + fmtH(c.hours) + '</span>') +
+      (c.flag ? '<span class="flag red">' + esc(c.flag) + '</span>' : '<span class="h tnum">' + fmtH(c.hours) + '</span>' +
+        (c.kind === 'und' ? ' <span class="flag und">UND</span>' : c.kind === 'hlf' ? ' <span class="flag hlf">HLF</span>' : '')) +
       '<span class="pp tnum">' + (c.pay ? peso(c.pay) : '₱0') + '</span>' +
       (c.apprOt ? '<span class="ot tnum">+' + fmtH(c.apprOt) + 'h OT</span>' : (c.otReg ? '<span class="s">OT reg ' + fmtH(c.otReg) + 'h</span>' : '')) +
       '<span class="s">' + esc(c.site) + '</span></td>';
@@ -1241,7 +1258,7 @@ function renderPayroll() {
     (A.payFilter === 'approval' ? approvalPanel(pending) : '') +
     (A.payFilter ? '<p class="small noprint" style="margin:10px 0 0"><b>Filtered:</b> ' + (A.payFilter === 'approval' ? 'workers that need approval' : 'workers with approved OT') + ' · <button class="linkbtn" id="pfClear">Show everyone</button></p>' : '') +
     '<div class="panel" style="margin-top:14px"><div class="tbl-wrap">' + tbl + '</div>' +
-    '<p class="note noprint">Same rules as your Payroll tab: hours = first IN to first OUT at the same site, rounded to ' + P.ROUND_HOURS_TO + ' h; ' + P.FULL_DAY_HOURS + ' h or more = full daily rate; under that = hourly rate × hours, minus lunch (' + P.LUNCH_START + '–' + P.LUNCH_END + ') if worked through it. ' +
+    '<p class="note noprint">Hours = time rendered inside the regular day (' + to12(P.WORK_START) + '–' + to12(P.WORK_END) + '), lunch ' + to12(P.LUNCH_START) + '–' + to12(P.LUNCH_END) + ' excluded, from the first IN to the first OUT at the same site, rounded to ' + P.ROUND_HOURS_TO + ' h. ' + P.FULL_DAY_HOURS + ' h = full daily rate. Less = hourly rate × hours rendered (UND), or HLF when timed in from ' + to12(P.HALF_DAY_IN_AFTER) + '. ' +
     'OT is only paid when approved. Click a day to approve OT, or the Adj. column for allowances or deductions (use a minus sign for deductions). These are saved in the PayrollAdjustments tab of your sheet.</p></div>' +
     siteSummaryPanel(ss, grand, subTotal) +
     '<div class="print-only-block sign-block"><div><span></span>Prepared by</div><div><span></span>Checked by</div><div><span></span>Approved by</div></div>';
@@ -1693,6 +1710,8 @@ const Demo = (() => {
       if (rnd() > 0.04 || i === 0) day.push(mk(date, outM, s[0], 'OUT', site));
       if (k === 4 && i === 3) day[1] = mk(date, 12 * 60 + 40, s[0], 'OUT', site);   // a short day
       if (k === 6 && i === 2) day.length = 1;                                          // a missing OUT
+      if ((k === 2 && (i === 1 || i === 8)) || (k === 8 && i === 0)) day[0] = mk(date, 12 * 60 + 52 + Math.floor(rnd() * 15), s[0], 'IN', site);   // half day (HLF)
+      if ((k === 5 && (i === 2 || i === 9)) || (k === 10 && i === 0)) day[0] = mk(date, 8 * 60 + 40 + Math.floor(rnd() * 50), s[0], 'IN', site);   // late (UND)
       if (k === 1 && i === 4) day[1] = mk(date, 21 * 60 + 35, s[0], 'OUT', site);   // a long day (possible OT)
       if (k % 3 === 0 && rnd() < 0.6) { day.push(mk(date, outM + 2, s[0], 'OT-IN', site)); day.push(mk(date, outM + 90 + Math.floor(rnd() * 90), s[0], 'OT-OUT', site)); }
       day.forEach(r => { if (r.ts <= now.getTime()) recs.push(r); });
