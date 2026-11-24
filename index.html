@@ -537,9 +537,9 @@ function confirmBox(title, text, okLabel) {
 function dayRule(inTime, outTime) {
   const P = CFG.pay, m = minOf;
   if (!inTime || !outTime) return { work: 0, kind: 'none' };
-  const g = Number(P.GRACE_MINUTES) || 0;   // optional grace: IN up to N min late / OUT up to N min early counts as on time
+  const g = Number(P.GRACE_MINUTES) || 0;   // grace applies to IN only: IN up to N min late counts as 8:00
   const inM = m(inTime) <= m(P.WORK_START) + g ? m(P.WORK_START) : m(inTime);
-  const outM = m(outTime) >= m(P.WORK_END) - g ? m(P.WORK_END) : m(outTime);
+  const outM = m(outTime);   // no grace on OUT: leaving before 5:00 PM counts the actual time
   const s = Math.max(inM, m(P.WORK_START)), e = Math.min(outM, m(P.WORK_END));
   const lunch = Math.max(0, Math.min(e, m(P.LUNCH_END)) - Math.max(s, m(P.LUNCH_START)));
   const work = roundTo(Math.max(0, e - s - lunch) / 60, P.ROUND_HOURS_TO);
