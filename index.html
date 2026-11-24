@@ -214,6 +214,7 @@
   .scanbox .scanidle{display:none}
   .scanbox.idle .scanidle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;position:absolute;inset:0;color:#dff2fd;text-align:center;padding:24px;font-size:14px;line-height:1.4}
   .scanidle .qrico{font-size:56px;line-height:1;color:#fff}
+  .scanidle .qrico svg{width:60px;height:60px;stroke-width:1.4}
   .scanidle .shotprev{max-width:70%;max-height:55%;border-radius:10px;opacity:.85;object-fit:contain}
   .demo-badges{margin-top:12px;padding:10px;border:1.5px dashed var(--line);border-radius:12px;display:flex;flex-wrap:wrap;gap:6px}
   .demo-badges p{width:100%;margin:0}
@@ -242,8 +243,38 @@
   .uchip{display:flex;align-items:center;gap:10px;color:#fff;font-size:13px;white-space:nowrap}
   .uchip span{display:flex;flex-direction:column;line-height:1.15;text-align:right;font-weight:600}
   .uchip small{font-weight:500;opacity:.75;font-size:11px}
-  .uchip .linkbtn{color:#dff2fd;font-size:12px}
-  .uchip .uact{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+  /* icon buttons */
+  .ibtns{display:flex;gap:6px}
+  .btn svg{vertical-align:-4px;margin-right:2px}
+  .scanbig svg{width:24px;height:24px;vertical-align:-5px}
+  .ibtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px;padding:6px 6px 5px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--brand);font-size:10.5px;font-weight:600;line-height:1.1}
+  .ibtn:hover{background:#f2f8fd;border-color:#bcd9ee}
+  .ibtn span{white-space:nowrap}
+  .acct .ibtns{gap:4px}
+  .acct .ibtn{min-width:0;padding:6px 8px 5px}
+  .ibtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  #signOut.ibtn{color:var(--out)}
+  .uchip .ibtn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
+  .uchip .ibtn:hover{background:rgba(255,255,255,.22)}
+  .uchip #signOut.ibtn{color:#ffd9d9}
+  .acct{margin:14px 12px 0;background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .acct-who{display:flex;align-items:center;gap:10px;min-width:0}
+  .acct-who b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px}
+  .acct-who small{display:block;font-size:11px;color:var(--ink2)}
+  .avatar.sm{width:34px;height:34px;font-size:13px;border-radius:10px}
+  @media (max-width:380px){.ibtn span{display:none}.ibtn{min-width:40px;padding:8px}}
+  @media (max-width:600px){
+    .admin{padding:0 10px 30px}
+    .frz .split{min-width:112px;max-width:140px;white-space:normal}
+    .frz .stk2{left:30px}.frz .stkn{width:30px;min-width:30px;max-width:30px}
+    .site-sum{overflow-x:auto}
+    .site-sum td.num,.site-sum th.num{width:auto}
+    .kpi .l .tiny{display:none}
+    table.pay tr > :nth-child(3){display:none}
+    .kpi .n{font-size:22px!important}
+    .panel{padding:12px}
+    .a-band .tabs button{padding:7px 10px;white-space:nowrap}
+  }
   .chk{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:14px;background:#f6f9fc;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px}
   .chk label,.chk1{display:flex;gap:8px;align-items:center}
   .chk1{margin-top:12px;font-size:14px}
@@ -394,7 +425,23 @@ function showLogin(msg) {
     } catch (err) { showLogin(errMsg(err)); }
   };
 }
-const userChip = () => S.user ? '<div class="uchip"><span>' + esc(S.user.name) + '<small>' + esc(S.user.role) + '</small></span><span class="uact"><button class="linkbtn" id="toScanner">📷 Scanner</button><button class="linkbtn" id="myPwTop">Change password</button><button class="linkbtn" id="signOut">Sign out</button></span></div>' : '';
+/* Small line icons (stroke follows the text colour, so they match the theme) */
+const ICONS = {
+  camera: '<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1.3-2h6l1.3 2h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/>',
+  dash: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="4.5" rx="1.5"/><rect x="13" y="10.5" width="7" height="9.5" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/>',
+  edit: '<circle cx="9" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5 1.2 0 2.3.3 3.2 1"/><path d="M14 20l.6-2.6 5-5a1.4 1.4 0 0 1 2 2l-5 5z"/>',
+  power: '<path d="M12 3.5v8"/><path d="M7.2 6.6a7 7 0 1 0 9.6 0"/>',
+  search: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
+  photo: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8 8"/>'
+};
+const icon = n => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[n] + '</svg>';
+const iconBtn = (id, n, label) => '<button class="ibtn" id="' + id + '" title="' + label + '" aria-label="' + label + '">' + icon(n) + '<span>' + label + '</span></button>';
+/** Account bar under the scan screens: who is recording + Dashboard / My account / Sign out. */
+const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
+const acctBar = () => S.user ? '<div class="acct"><div class="acct-who" title="' + esc(S.user.name) + '"><span class="avatar sm">' + esc(initials(S.user.name)) + '</span><div><b>' + esc(firstName(S.user.name)) + '</b><small>' + esc(S.user.role) + '</small></div></div>' +
+  '<div class="ibtns">' + iconBtn('toDash', 'dash', 'Dashboard') + iconBtn('myPwTop', 'edit', 'My account') + iconBtn('signOut', 'power', 'Sign out') + '</div></div>' : '';
+const userChip = () => S.user ? '<div class="uchip"><span title="' + esc(S.user.name) + '">' + esc(firstName(S.user.name)) + '<small>' + esc(S.user.role) + '</small></span>' +
+  '<div class="ibtns">' + iconBtn('toScanner', 'camera', 'Scanner') + iconBtn('myPwTop', 'edit', 'My account') + iconBtn('signOut', 'power', 'Sign out') + '</div></div>' : '';
 /** Wires the "Change password" / "Sign out" links wherever they appear. */
 function wireAccount() {
   const so = $('#signOut'); if (so) so.onclick = signOut;
@@ -546,9 +593,8 @@ function renderWorker() {
         (W.msg ? '<div class="msg ' + W.msg.k + '">' + esc(W.msg.t) + '</div>' : '') +
       '</div>' +
       '<div class="log"><h2>Today · ' + esc(fmtDay(d.today)) + '</h2>' + (logRows || '<div class="small muted">No scans yet today.</div>') + '</div>' +
-      '<p class="center" style="margin-top:14px"><button class="btn dark" id="scanNext" style="padding:12px 18px">📷 Scan next worker</button></p>' +
-      '<p class="center tiny">Recording as <b>' + esc(S.user ? S.user.name : '') + '</b> · <button class="linkbtn" id="myPwTop">Change password</button> · <button class="linkbtn" id="signOut">Sign out</button></p>' +
-      '<p class="center" style="margin-top:4px"><button class="btn" id="toDash">📊 Open dashboard</button></p>' +
+      '<p class="center" style="margin-top:14px"><button class="btn dark" id="scanNext" style="padding:12px 18px">' + icon('camera') + ' Scan next worker</button></p>' +
+      acctBar() +
     '</div>';
   $('#site').onchange = e => { W.site = e.target.value; };
   wireAccount();
@@ -719,19 +765,18 @@ async function showScanner(msg) {
   $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Scan worker QR') + '<div class="hr"><div class="clock"><b class="tnum" id="clk"></b><span id="clkd"></span></div>' + logoImg() + '</div></div>' +
     '<div class="sheet">' +
     '<div class="scanbox idle" id="scanBox"><video id="cam" playsinline muted></video><div class="frame"></div>' +
-      '<div class="scanidle" id="scanIdle"><div class="qrico">▣</div><div>Tap <b>Scan QR</b> and point the camera at the worker\'s ARMM badge.</div></div>' +
+      '<div class="scanidle" id="scanIdle"><div class="qrico">' + icon('camera') + '</div><div>Tap <b>Scan QR</b> and point the camera at the worker\'s ARMM badge.</div></div>' +
       '<div class="scanmsg" id="scanMsg"></div></div>' +
     (msg ? '<div class="msg err">' + esc(msg) + '</div>' : '') +
     '<div id="scanMain" style="margin-top:12px">' + scanButton(photoMode) + '</div>' +
     (CFG.scannerUrl && !REMOTE && photoMode ? '<p class="center small" style="margin:10px 0 0">Want the live camera? <a href="' + esc(CFG.scannerUrl) + '" target="_top"><b>Open ARMM Live</b></a></p>' : '') +
     '<div class="scanbtns">' +
-      (photoMode ? '<button class="btn" id="tryLive">Try live camera</button>' : '<label class="btn" id="altShot"><input type="file" accept="image/*" capture="environment" hidden class="shot">📸 Take photo instead</label>') +
-      (CFG.allowNameSearch ? '<button class="btn" id="byName">🔎 Search by name</button>' : '') + '</div>' +
+      (photoMode ? '<button class="btn" id="tryLive">Try live camera</button>' : '<label class="btn" id="altShot"><input type="file" accept="image/*" capture="environment" hidden class="shot">' + icon('photo') + ' Take photo instead</label>') +
+      (CFG.allowNameSearch ? '<button class="btn" id="byName">' + icon('search') + ' Search by name</button>' : '') + '</div>' +
     (DEMO ? '<div class="demo-badges"><p class="tiny">Preview only: tap a sample badge to simulate a scan</p>' +
       ['Ramon Villanueva', 'Joel Bautista', 'Arnel Santos'].map(n => '<button class="btn" data-sim="' + esc(n) + '">' + esc(n) + '</button>').join('') +
       '<button class="btn" data-simbad="1">Phone-camera link (old)</button></div>' : '') +
-    '</div><p class="center tiny" style="margin-top:14px">Recording as <b>' + esc(S.user ? S.user.name : '') + '</b> · <button class="linkbtn" id="myPwTop">Change password</button> · <button class="linkbtn" id="signOut">Sign out</button></p>' +
-      '<p class="center" style="margin-top:4px"><button class="btn" id="toDash">📊 Open dashboard</button></p></div>';
+    '</div>' + acctBar() + '</div>';
   wireAccount(); tickClock();
   const so = $('#signOut'); if (so) so.onclick = () => { stopScanner(); signOut(); };
   if ($('#byName')) $('#byName').onclick = () => { stopScanner(); showPicker(); };
@@ -743,8 +788,8 @@ async function showScanner(msg) {
 /** Big main button: "Scan QR" (live camera) or, if the live camera can't be used on this phone, "Scan QR" that opens the camera app. */
 function scanButton(photoMode) {
   return photoMode
-    ? '<label class="btn dark scanbig"><input type="file" accept="image/*" capture="environment" hidden class="shot">📷 Scan QR</label><p class="tiny center" style="margin:6px 0 0">Opens the camera. Take a clear photo of the badge.</p>'
-    : '<button class="btn dark scanbig" id="scanStart">📷 Scan QR</button>';
+    ? '<label class="btn dark scanbig"><input type="file" accept="image/*" capture="environment" hidden class="shot">' + icon('camera') + ' Scan QR</label><p class="tiny center" style="margin:6px 0 0">Opens the camera. Take a clear photo of the badge.</p>'
+    : '<button class="btn dark scanbig" id="scanStart">' + icon('camera') + ' Scan QR</button>';
 }
 function wireScanControls() {
   if ($('#scanStart')) $('#scanStart').onclick = startLiveScan;
@@ -798,7 +843,7 @@ async function startLiveScan() {
     store.set('armm_photo_scan', '1');
     box.classList.add('idle');
     msgEl.textContent = '';
-    $('#scanIdle').innerHTML = '<div class="qrico">📷</div><div><b>Live camera isn\'t available here</b>' + (denied ? ' (camera permission blocked)' : '') +
+    $('#scanIdle').innerHTML = '<div class="qrico">' + icon('camera') + '</div><div><b>Live camera isn\'t available here</b>' + (denied ? ' (camera permission blocked)' : '') +
       '.<br>Tap <b>Scan QR</b> below. It opens the camera so you can take a photo of the badge.</div>' +
       (CFG.scannerUrl && !REMOTE ? '<a class="btn dark" href="' + esc(CFG.scannerUrl) + '" target="_top" style="text-decoration:none">Open ARMM Live (live camera)</a>' : '');
     $('#scanMain').innerHTML = scanButton(true);
@@ -825,10 +870,9 @@ async function showPicker() {
   try {
     const d = await call('getWorkerData', '');
     $('#app').innerHTML = '<div class="phone"><div class="w-head">' + appBrand('Site Attendance') + '<div class="hr"><div class="clock"><b class="tnum" id="clk"></b><span id="clkd"></span></div>' + logoImg() + '</div></div>' +
-      '<div class="sheet"><h1 style="font-size:19px;margin:0 0 10px">Find a worker <button class="btn" id="backScan" style="float:right;font-size:13px;padding:6px 10px">📷 Scan instead</button></h1>' +
+      '<div class="sheet"><h1 style="font-size:19px;margin:0 0 10px">Find a worker <button class="btn" id="backScan" style="float:right;font-size:13px;padding:6px 10px">' + icon('camera') + ' Scan instead</button></h1>' +
       '<input class="search" id="q" placeholder="Type the worker\'s name…" autocomplete="off"><div class="plist" id="pl"></div></div>' +
-      '<p class="center tiny" style="margin-top:14px">Recording as <b>' + esc(S.user ? S.user.name : '') + '</b> · <button class="linkbtn" id="myPwTop">Change password</button> · <button class="linkbtn" id="signOut">Sign out</button></p>' +
-      '<p class="center" style="margin-top:4px"><button class="btn" id="toDash">📊 Open dashboard</button></p></div>';
+      acctBar() + '</div>';
     wireAccount();
     $('#backScan').onclick = () => showScanner();
     tickClock();
