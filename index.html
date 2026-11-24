@@ -189,6 +189,15 @@
   .sitecost b{font-size:13px;grid-column:2;grid-row:1;justify-self:end;z-index:1}
   .sitecost i{grid-column:2;grid-row:1;height:22px;background:var(--otin-bg);border-radius:6px;display:block}
   .print-only{display:none}
+  /* Week page */
+  .wk2 td.d{min-width:70px;vertical-align:middle}
+  .wk-ok{color:#16a34a;display:inline-block;vertical-align:middle}
+  .wk-und{color:#dc2626;font-weight:800;font-size:13px;letter-spacing:.3px}
+  .wk-bang{color:#dc2626;font-weight:900;font-size:18px;line-height:1}
+  .wk2 td.c-wd.wd2{background:#d9f0e1} .wk2 th.c-wd.wd2{background:#bfe5cc;color:#14532d}
+  .wk2 .g1{background:#f4f5f7} .wk2 th.g1{background:#e2e5e9}
+  .wk2 .g2{background:#e8ebee} .wk2 th.g2{background:#d4d9de}
+  .wk2 tfoot td.g1,.wk2 tfoot td.g2{border-top:1.5px solid var(--line)}
   /* Today table column colours */
   .daytbl .c-site{background:#f3e8dc} .daytbl th.c-site{background:#e9d6c0;color:#6b4a2b}
   .daytbl .c-in{background:#e6f6ea} .daytbl th.c-in{background:#d3efdb;color:#166534}
@@ -793,7 +802,8 @@ async function showScanner(msg) {
     (CFG.scannerUrl && !REMOTE && photoMode ? '<p class="center small" style="margin:10px 0 0">Want the live camera? <a href="' + esc(CFG.scannerUrl) + '" target="_top"><b>Open ARMM Live</b></a></p>' : '') +
     '<div class="scanbtns">' +
       (photoMode ? '<button class="btn" id="tryLive">Try live camera</button>' : '<label class="btn" id="altShot"><input type="file" accept="image/*" capture="environment" hidden class="shot">' + icon('photo') + ' Take photo instead</label>') +
-      (CFG.allowNameSearch ? '<button class="btn" id="byName">' + icon('search') + ' Search by name</button>' : '') + '</div>' +
+      (CFG.allowNameSearch ? '<button class="btn" id="byName">' + icon('search') + ' Search by name</button>' : '') +
+      '<button class="btn" id="toDash2">' + icon('dash') + ' Dashboard</button></div>' +
     (DEMO ? '<div class="demo-badges"><p class="tiny">Preview only: tap a sample badge to simulate a scan</p>' +
       ['Ramon Villanueva', 'Joel Bautista', 'Arnel Santos'].map(n => '<button class="btn" data-sim="' + esc(n) + '">' + esc(n) + '</button>').join('') +
       '<button class="btn" data-simbad="1">Phone-camera link (old)</button></div>' : '') +
@@ -801,6 +811,7 @@ async function showScanner(msg) {
   wireAccount(); tickClock();
   const so = $('#signOut'); if (so) so.onclick = () => { stopScanner(); signOut(); };
   if ($('#byName')) $('#byName').onclick = () => { stopScanner(); showPicker(); };
+  $('#toDash2').onclick = () => goMode('admin');
   if ($('#tryLive')) $('#tryLive').onclick = () => { store.set('armm_photo_scan', ''); showScanner(); setTimeout(() => $('#scanStart') && $('#scanStart').click(), 50); };
   $$('[data-sim]').forEach(b => b.onclick = () => onScanned(BOOT.appUrl + '?badge=demo.' + encodeURIComponent(b.dataset.sim)));
   $$('[data-simbad]').forEach(b => b.onclick = () => onScanned(BOOT.appUrl + '?name=Ramon%20Villanueva'));
@@ -1045,6 +1056,21 @@ function renderToday() {
   const tq = $('#tq'); tq.oninput = e => { A.q = e.target.value; renderToday(); const n = $('#tq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
 }
 
+/** Hours actually worked in a day: IN → OUT minus the lunch hour when it was worked through. */
+function workHours(c) {
+  if (!c || !c.in || !c.out || !(c.reg > 0)) return 0;
+  const P = PAY(), lunch = Math.max(0, Math.min(minOf(c.out.time), minOf(P.LUNCH_END)) - Math.max(minOf(c.in.time), minOf(P.LUNCH_START))) / 60;
+  return Math.max(0, c.reg - lunch);
+}
+const WEEK_FULL_HOURS = 48, DAY_FULL_HOURS = 8;
+const CHECK = '<svg class="wk-ok" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+/** ✓ complete · Und under · ! zero.  full = hours needed for ✓ */
+function mark(hours, full, title) {
+  const t = ' title="' + esc(title) + '"';
+  if (!(hours > 0.004)) return '<span class="wk-bang"' + t + '>!</span>';
+  if (hours + 1e-6 >= full) return '<span' + t + '>' + CHECK + '</span>';
+  return '<span class="wk-und"' + t + '>Und</span>';
+}
 function weekTable() {
   const data = A.wk, ws = weekStartOf(parseYmd(A.date));
   const days = [0, 1, 2, 3, 4, 5, 6].map(i => ymd(addDays(ws, i)));
@@ -1053,8 +1079,9 @@ function weekTable() {
   const known = {}; names.forEach(n => known[norm(n.name)] = 1);
   data.records.forEach(r => { if (!known[norm(r.name)]) { known[norm(r.name)] = 1; names.push({ name: r.name, designation: '(not in list)' }); } });
   const rows = names.map(n => {
-    const cells = days.map(d => { const recs = g[norm(n.name) + '|' + d]; return recs ? summarize(recs, d < data.today) : null; });
-    const tot = { days: cells.filter(Boolean).length, reg: cells.reduce((a, c) => a + (c ? c.reg : 0), 0), ot: cells.reduce((a, c) => a + (c ? c.ot : 0), 0), flags: cells.reduce((a, c) => a + (c ? c.flags.length : 0), 0) };
+    const cells = days.map(d => { const recs = g[norm(n.name) + '|' + d]; const c = recs ? summarize(recs, d < data.today) : null; if (c) c.work = workHours(c); return c; });
+    const tot = { days: cells.filter(Boolean).length, reg: cells.reduce((a, c) => a + (c ? c.reg : 0), 0), ot: cells.reduce((a, c) => a + (c ? c.ot : 0), 0),
+      work: cells.reduce((a, c) => a + (c ? c.work : 0), 0), flags: cells.reduce((a, c) => a + (c ? c.flags.length : 0), 0) };
     return { n, cells, tot };
   }).filter(r => !A.wkSite || r.cells.some(c => c && c.sites.indexOf(A.wkSite) >= 0));
   return { days, rows };
@@ -1062,18 +1089,31 @@ function weekTable() {
 function renderWeek() {
   const { days, rows } = weekTable();
   const sites = (A.wk.sites || []).slice();
+  const today = A.wk.today;
   const dayTot = days.map((d, i) => rows.reduce((a, r) => a + (r.cells[i] ? 1 : 0), 0));
-  const tbl = '<table class="wk frz"><thead><tr><th class="stk split">Name</th>' + days.map(dayTh).join('') +
-    '<th class="num">Days</th><th class="num">Reg hrs</th><th class="num">OT hrs</th></tr></thead><tbody>' +
+  // column colours: Sat blue, Sun red, weekdays alternate light / darker green; totals alternate light / darker grey
+  const colCls = (d, i) => { const c = dayCls(d); return c === 'c-wd' ? 'c-wd' + (i % 2 ? ' wd2' : '') : c; };
+  const th = (d, i) => dayTh(d).replace('class="dh ' + dayCls(d) + '"', 'class="dh ' + colCls(d, i) + '"');
+  const dayCell = (c, d) => {
+    const sun = parseYmd(d).getDay() === 0;
+    if (d > today || (!c && sun)) return '<span class="tiny">–</span>';
+    if (!c) return mark(0, DAY_FULL_HOURS, 'Absent');
+    const info = fmtH(c.work) + ' h worked' + (c.ot > 0 ? ' + ' + fmtH(c.ot) + ' h OT' : '') + ' · ' + c.sites.join(', ') + (c.flags.length ? ' · ' + c.flags.join(', ') : '');
+    if (d === today && (c.state === 'onsite' || c.state === 'ot')) return '<span class="tiny" title="' + esc(info) + '">on site</span>';
+    return mark(c.work, DAY_FULL_HOURS, info);
+  };
+  const tbl = '<table class="wk wk2 frz"><thead><tr><th class="stk split">Name</th>' + days.map(th).join('') +
+    '<th class="num g1">Days</th><th class="g2" style="text-align:center">Reg hrs</th><th class="num g1">OT hrs</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="stk split"><b>' + esc(r.n.name) + '</b><br><span class="tiny">' + esc(r.n.designation) + '</span></td>' +
-      r.cells.map((c, i) => '<td class="d ' + dayCls(days[i]) + '">' + (c ? '<span class="h tnum">' + fmtH(c.reg) + '</span>' + (c.ot > 0 ? '<span class="ot tnum">+' + fmtH(c.ot) + ' OT</span>' : '') +
-        '<span class="s" title="' + esc(c.sites.join(', ')) + '">' + esc(c.sites.join(', ')) + '</span>' + (c.flags.length ? '<span class="flag" title="' + esc(c.flags.join(', ')) + '">!</span>' : '') : '<span class="tiny">–</span>') + '</td>').join('') +
-      '<td class="num tnum">' + r.tot.days + '</td><td class="num tnum"><b>' + fmtH(r.tot.reg) + '</b></td><td class="num tnum">' + fmtH(r.tot.ot) + '</td></tr>').join('') +
-    '</tbody><tfoot><tr><td class="stk split">Present per day</td>' + dayTot.map((n, i) => '<td class="d tnum ' + dayCls(days[i]) + '">' + n + '</td>').join('') + '<td></td><td></td><td></td></tr></tfoot></table>';
+      r.cells.map((c, i) => '<td class="d ' + colCls(days[i], i) + '">' + dayCell(c, days[i]) + '</td>').join('') +
+      '<td class="num tnum g1">' + r.tot.days + '</td><td class="d g2">' + mark(r.tot.work, WEEK_FULL_HOURS, fmtH(r.tot.work) + ' h worked this week (complete = ' + WEEK_FULL_HOURS + ' h)') + '</td>' +
+      '<td class="num tnum g1">' + fmtH(r.tot.ot) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td class="stk split">Present per day</td>' + dayTot.map((n, i) => '<td class="d tnum ' + colCls(days[i], i) + '">' + n + '</td>').join('') + '<td class="g1"></td><td class="g2"></td><td class="g1"></td></tr></tfoot></table>';
   $('#tab').innerHTML = dateBar('<select id="wSite"><option value="">All sites</option>' + sites.map(s => '<option' + (s === A.wkSite ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
       '<button class="btn" id="wCopy">Copy for Sheets</button><button class="btn dark" id="wCsv">Download CSV</button>') +
     '<div class="small muted" style="margin:-6px 0 12px">Payroll week ' + esc(fmtDay(days[0], { day: 'numeric', month: 'short' })) + ' – ' + esc(fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })) + '</div>' +
-    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Clock hours between IN→OUT and OT-IN→OT-OUT, before any break deduction. "!" marks a day with a missing or odd scan. Use the Today tab to see details.</p></div>';
+    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note"><b style="color:var(--in)">✓</b> complete (' + DAY_FULL_HOURS + ' h a day / ' + WEEK_FULL_HOURS + ' h for the week, lunch excluded) · <b style="color:var(--out)">Und</b> undertime · <b style="color:var(--out)">!</b> no hours (absent or missing OUT). ' +
+    'Hover or tap-and-hold a mark to see the hours. Download CSV still has the exact hours.</p></div>';
   wireDateBar(7);
   $('#wSite').onchange = e => { A.wkSite = e.target.value; renderWeek(); };
   $('#wCsv').onclick = () => {
