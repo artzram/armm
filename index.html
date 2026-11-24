@@ -189,6 +189,24 @@
   .sitecost b{font-size:13px;grid-column:2;grid-row:1;justify-self:end;z-index:1}
   .sitecost i{grid-column:2;grid-row:1;height:22px;background:var(--otin-bg);border-radius:6px;display:block}
   .print-only{display:none}
+  /* Today table column colours */
+  .daytbl .c-site{background:#f3e8dc} .daytbl th.c-site{background:#e9d6c0;color:#6b4a2b}
+  .daytbl .c-in{background:#e6f6ea} .daytbl th.c-in{background:#d3efdb;color:#166534}
+  .daytbl .c-out{background:#fdecef} .daytbl th.c-out{background:#f9dbe1;color:#9f1239}
+  .daytbl .c-otin{background:#d2eed9} .daytbl th.c-otin{background:#bfe5c9;color:#14532d}
+  .daytbl .c-otout{background:#f8d7df} .daytbl th.c-otout{background:#f2c2ce;color:#881337}
+  .daytbl .c-stat{background:#f2f4f6} .daytbl th.c-stat{background:#e5e8ec}
+  .daytbl tr:hover td{filter:brightness(.97)}
+  .daytbl tr:hover td.stk{filter:none}
+  .flag.und{background:#ffe7cc;color:#9a3412}
+  /* main header stays on top while scrolling */
+  .a-band{position:sticky;top:0;z-index:40}
+  .a-band.compact .an-top span,.a-band.compact .an-sub{display:none}
+  .a-band.compact .a-top{padding-top:8px;padding-bottom:8px}
+  .a-band.compact .an-top b{font-size:20px}
+  .a-band.compact .ibtn span{display:none}
+  .a-band.compact .ibtn{min-width:40px;padding:7px}
+  .a-band.compact .logo{width:36px;height:36px}
   .sq-wrap{display:flex;gap:14px;align-items:center}
   .sq{width:130px;height:130px;flex:none;background:#fff;border-radius:10px;padding:4px}
   .sq svg{width:122px;height:122px}
@@ -413,7 +431,7 @@ function showLogin(msg) {
     '<label class="field"><span>Password</span><input id="lp" type="password" autocomplete="current-password"></label>' +
     (msg ? '<div class="msg err">' + esc(msg) + '</div>' : '') +
     '<button class="btn dark" id="lb" style="width:100%;margin-top:14px;padding:12px">Sign in</button>' +
-    '<p class="tiny center" style="margin:12px 0 0">No account yet, or forgot your password? An Admin can reset it in <b>Users &amp; settings</b>. The sheet owner can also use the <b>ARMM → Add or reset a user</b> menu in the Google Sheet.</p></form></div>';
+    '<p class="tiny center" style="margin:12px 0 0">No account yet, or forgot your password? An Admin can reset it in <b>Settings</b>. The sheet owner can also use the <b>ARMM → Add or reset a user</b> menu in the Google Sheet.</p></form></div>';
   $('#lu').focus();
   $('#lf').onsubmit = async e => {
     e.preventDefault();
@@ -450,6 +468,7 @@ function wireAccount() {
   const ts = $('#toScanner'); if (ts) ts.onclick = () => goMode('scan');
 }
 /** Switch between the scanner and the dashboard without signing in again (same saved sign-in). */
+window.addEventListener('scroll', () => { const b = document.querySelector('.a-band'); if (b) b.classList.toggle('compact', window.scrollY > 40); }, { passive: true });
 function goMode(mode) {
   stopScanner(); clearInterval(A.timer);
   if (REMOTE) { try { history.replaceState(null, '', mode === 'admin' ? '?admin=1' : location.pathname); } catch (e) {} }
@@ -526,6 +545,8 @@ function summarize(recs, isPast) {
     s.state = openOt ? 'ot' : openReg ? 'onsite' : recs.length ? 'done' : 'absent';
   }
   if (s.in && s.in.time > CFG.lateAfter) s.flags.push('Late');
+  // Undertime: checked out with less than UNDERTIME_HOURS between IN and OUT
+  s.und = !!(s.in && s.out && !openReg && s.reg > 0 && s.reg < (CFG.undertimeHours || 9));
   s.site = s.last ? s.last.site : '';
   return s;
 }
@@ -918,13 +939,15 @@ async function loadAdmin(fromLogin) {
 }
 function renderAdmin() {
   const isAdmin = S.user && S.user.role === 'Admin';
-  const tabs = [['today', 'Daily'], ['week', 'Weekly hours'], ['payroll', 'Payroll'], ['master', 'Manpower & sites'], ['badges', 'QR badges'], ['settings', 'Users & settings']]
+  const tabs = [['today', 'Today'], ['week', 'Week'], ['payroll', 'Payroll'], ['master', 'Maintenance'], ['badges', 'QR badges'], ['settings', 'Settings']]
     .filter(t => isAdmin || ['payroll', 'settings', 'master'].indexOf(t[0]) < 0);
   if (!tabs.some(t => t[0] === A.tab)) A.tab = 'today';
   $('#app').innerHTML = '<header class="a-band"><div class="a-top">' + appBrand('Attendance Dashboard') +
     '<div class="tabs">' + tabs.map(t => '<button data-tab="' + t[0] + '"' + (A.tab === t[0] ? ' class="on"' : '') + '>' + t[1] + '</button>').join('') + '</div>' + userChip() + logoImg() + '</div></header>' +
     '<div class="admin"><div id="tab"></div></div>';
   wireAccount();
+  const band = $('.a-band');
+  if (band) { band.classList.toggle('compact', window.scrollY > 40); }
   $$('.tabs button').forEach(b => b.onclick = () => {
     A.tab = b.dataset.tab;
     if (A.tab === 'week' || A.tab === 'today' || A.tab === 'payroll') return loadAdmin(false);
@@ -999,11 +1022,12 @@ function renderToday() {
   shown.sort((a, b) => (a.state === 'absent') - (b.state === 'absent') || norm(a.site).localeCompare(norm(b.site)) || a.name.localeCompare(b.name));
   const pillCls = { absent: 'st-absent', onsite: 'st-onsite', ot: 'st-ot', done: 'st-done' };
   const t = r => r ? '<span class="tnum">' + esc(to12(r.time)) + '</span>' : '<span class="tiny">–</span>';
-  const tbl = '<table class="frz"><thead><tr><th class="stk split">Name</th><th>Designation</th><th>Site</th><th>IN</th><th>OUT</th><th>OT-IN</th><th>OT-OUT</th><th class="num">Reg hrs</th><th class="num">OT hrs</th><th>Status</th></tr></thead><tbody>' +
-    shown.map(r => '<tr><td class="stk split"><b>' + esc(r.name) + '</b></td><td class="muted">' + esc(r.designation) + '</td><td>' + esc(r.sites.join(', ')) + '</td>' +
-      '<td>' + t(r.in) + '</td><td>' + t(r.out) + '</td><td>' + t(r.otIn) + '</td><td>' + t(r.otOut) + '</td>' +
-      '<td class="num tnum">' + fmtH(r.reg) + '</td><td class="num tnum">' + fmtH(r.ot) + '</td>' +
-      '<td><span class="pill ' + pillCls[r.state] + '"><span class="dot"></span>' + STATE_LABEL[r.state] + '</span> ' +
+  const tbl = '<table class="frz daytbl"><thead><tr><th class="stk split">Name</th><th class="c-site">Site</th><th class="c-in">IN</th><th class="c-out">OUT</th><th class="c-otin">OT-IN</th><th class="c-otout">OT-OUT</th><th class="num">OT hrs</th><th class="c-stat">Status</th></tr></thead><tbody>' +
+    shown.map(r => '<tr><td class="stk split"><b>' + esc(r.name) + '</b></td><td class="c-site">' + esc(r.sites.join(', ')) + '</td>' +
+      '<td class="c-in">' + t(r.in) + '</td><td class="c-out">' + t(r.out) + '</td><td class="c-otin">' + t(r.otIn) + '</td><td class="c-otout">' + t(r.otOut) + '</td>' +
+      '<td class="num tnum">' + fmtH(r.ot) + '</td>' +
+      '<td class="c-stat"><span class="pill ' + pillCls[r.state] + '"><span class="dot"></span>' + STATE_LABEL[r.state] + '</span> ' +
+      (r.und ? '<span class="flag und" title="Undertime: ' + fmtH(r.reg) + ' h between IN and OUT (under ' + (CFG.undertimeHours || 9) + ' h)">Und</span>' : '') +
       r.flags.map(x => '<span class="flag' + (/^No |without/.test(x) ? ' red' : '') + '">' + esc(x) + '</span>').join('') + '</td></tr>').join('') +
     '</tbody></table>' + (shown.length ? '' : '<p class="muted small center">Nobody matches this filter.</p>');
   const feed = data.records.filter(r => r.day === A.date).slice(-25).reverse().map(r =>
@@ -1049,7 +1073,7 @@ function renderWeek() {
   $('#tab').innerHTML = dateBar('<select id="wSite"><option value="">All sites</option>' + sites.map(s => '<option' + (s === A.wkSite ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select>' +
       '<button class="btn" id="wCopy">Copy for Sheets</button><button class="btn dark" id="wCsv">Download CSV</button>') +
     '<div class="small muted" style="margin:-6px 0 12px">Payroll week ' + esc(fmtDay(days[0], { day: 'numeric', month: 'short' })) + ' – ' + esc(fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })) + '</div>' +
-    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Clock hours between IN→OUT and OT-IN→OT-OUT, before any break deduction. "!" marks a day with a missing or odd scan. Use the Daily tab to see details.</p></div>';
+    '<div class="panel"><div class="tbl-wrap">' + tbl + '</div><p class="note">Clock hours between IN→OUT and OT-IN→OT-OUT, before any break deduction. "!" marks a day with a missing or odd scan. Use the Today tab to see details.</p></div>';
   wireDateBar(7);
   $('#wSite').onchange = e => { A.wkSite = e.target.value; renderWeek(); };
   $('#wCsv').onclick = () => {
@@ -1448,7 +1472,7 @@ function renderSettings() {
   const links = [['Supervisor dashboard', base + '?admin=1'], ['ARMM scanner (for encoders)', base]];
   const users = A.users || [];
   $('#tab').innerHTML = '<div class="panel"><h2>Users <button class="btn dark" id="uAdd" style="margin-left:auto;text-transform:none;letter-spacing:0">+ Add user</button></h2>' +
-    '<p class="small muted" style="margin:0 0 10px"><b>Encoder</b>: records scans (optionally only for certain sites) and sees Daily, Weekly hours and QR badges. <b>Admin</b>: everything, including Payroll and Users &amp; settings. Every scan saves who recorded it.</p>' +
+    '<p class="small muted" style="margin:0 0 10px"><b>Encoder</b>: records scans (optionally only for certain sites) and sees Today, Week and QR badges. <b>Admin</b>: everything, including Payroll and Settings. Every scan saves who recorded it.</p>' +
     '<div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Sites</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead><tbody>' +
     users.map((u, i) => '<tr><td><b>' + esc(u.username) + '</b></td><td>' + esc(u.name) + '</td><td>' + esc(u.role) + '</td><td class="small">' + (u.sites && u.sites.length ? esc(u.sites.join(', ')) : '<span class="muted">All sites</span>') + '</td>' +
       '<td>' + (u.active ? '<span class="pill st-onsite"><span class="dot"></span>Active</span>' : '<span class="pill st-absent"><span class="dot"></span>Disabled</span>') + '</td>' +
