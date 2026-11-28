@@ -66,6 +66,9 @@
   .field>span{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:6px}
   .field select,.field input{width:100%;padding:13px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:16px}
   .field select:focus,.field input:focus{outline:none;border-color:var(--ink)}
+  .site-lock{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px;border:1.5px dashed #bfe3f8;border-radius:12px;background:#f2f9fe;color:var(--ink);font-size:16px}
+  .site-lock svg{width:18px;height:18px;color:#0F75BC}
+  .site-lock small{color:#6b7280;font-size:12px;margin-left:auto}
   .pin{letter-spacing:6px;font-weight:700;text-align:center}
   .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
   .scan{border:0;border-radius:14px;padding:18px 10px 14px;text-align:center;font-weight:800;font-size:20px;letter-spacing:.5px;position:relative;transition:transform .08s}
@@ -461,6 +464,7 @@ function showLogin(msg) {
 }
 /* Small line icons (stroke follows the text colour, so they match the theme) */
 const ICONS = {
+  pin: '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
   camera: '<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1.3-2h6l1.3 2h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/>',
   dash: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="4.5" rx="1.5"/><rect x="13" y="10.5" width="7" height="9.5" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/>',
   edit: '<circle cx="9" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5 1.2 0 2.3.3 3.2 1"/><path d="M14 20l.6-2.6 5-5a1.4 1.4 0 0 1 2 2l-5 5z"/>',
@@ -629,8 +633,16 @@ function suggestedType(recs) {
   if (!recs.length) return 'IN';
   return { 'IN': 'OUT', 'OT-IN': 'OT-OUT' }[recs[recs.length - 1].type] || null;
 }
+// OUT / OT-OUT take the site of today's last IN / OT-IN (no choice for the encoder)
+function openerFor(type) {
+  const opener = type === 'OUT' ? 'IN' : type === 'OT-OUT' ? 'OT-IN' : null;
+  if (!opener) return null;
+  return W.records.filter(r => r.type === opener).pop() || null;
+}
 function renderWorker() {
   const d = W.d, s = summarize(W.records, false), sug = suggestedType(W.records);
+  const lockOpen = (sug === 'OUT' || sug === 'OT-OUT') ? openerFor(sug) : null;   // worker is on site / on OT: site is fixed
+  if (lockOpen) W.site = lockOpen.site;
   const stText = {
     absent: 'Not timed in yet today',
     onsite: 'On site since ' + (s.in ? s.in.time12 || to12(s.in.time) : ''),
@@ -645,8 +657,10 @@ function renderWorker() {
       '<div class="sheet">' +
         '<div class="tiny" style="margin-bottom:8px">Recording attendance for</div><div class="who"><div class="avatar">' + esc(initials(W.name)) + '</div><div><h1>' + esc(W.name) + '</h1><p>' + esc(d.worker.designation || 'Worker') + '</p></div></div>' +
         '<div class="status st-' + s.state + '"><span class="dot"></span>' + esc(stText) + '</div>' +
-        '<label class="field"><span>Construction site</span><select id="site"><option value="">Choose site…</option>' +
-          d.sites.map(x => '<option' + (x === W.site ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
+        (lockOpen
+          ? '<div class="field"><span>Construction site</span><div class="site-lock">' + icon('pin') + '<b>' + esc(lockOpen.site) + '</b><small>from ' + esc(lockOpen.type) + ' at ' + esc(lockOpen.time12 || to12(lockOpen.time)) + '</small></div></div>'
+          : '<label class="field"><span>Construction site</span><select id="site"><option value="">Choose site…</option>' +
+            d.sites.map(x => '<option' + (x === W.site ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>') +
         '<div class="btns">' + CFG.types.map(t =>
           '<button class="scan ' + TYPE[t].cls + (t === sug ? ' sugg' : '') + '" data-type="' + t + '"' + (W.busy ? ' disabled' : '') + '>' + t + '<small>' + TYPE[t].sub + '</small></button>').join('') + '</div>' +
         (W.msg ? '<div class="msg ' + W.msg.k + '">' + esc(W.msg.t) + '</div>' : '') +
@@ -655,7 +669,7 @@ function renderWorker() {
       '<p class="center" style="margin-top:14px"><button class="btn dark" id="scanNext" style="padding:12px 18px">' + icon('camera') + ' Scan next worker</button></p>' +
       acctBar() +
     '</div>';
-  $('#site').onchange = e => { W.site = e.target.value; };
+  if ($('#site')) $('#site').onchange = e => { W.site = e.target.value; };
   wireAccount();
   $$('.scan').forEach(b => b.onclick = () => doScan(b.dataset.type, sug, s));
   $('#scanNext').onclick = () => showScanner();
@@ -678,7 +692,9 @@ function getGps() {
 }
 async function doScan(type, sug, s) {
   W.msg = null;
-  if (!W.site) { W.msg = { k: 'err', t: 'Choose the construction site first.' }; return renderWorker(); }
+  const open = openerFor(type);
+  const site = open ? open.site : W.site;   // OUT / OT-OUT: same site as the IN / OT-IN
+  if (!site) { W.msg = { k: 'err', t: 'Choose the construction site first.' }; return renderWorker(); }
   if (sug && type !== sug) {
     const why = s.state === 'onsite' ? W.name + ' is already timed in.' : s.state === 'ot' ? W.name + ' is on overtime.' : W.name + ' has not timed in yet.';
     const ok = await confirmBox('Record ' + type + '?', why + ' The usual next step is ' + sug + '.', 'Yes, record ' + type);
@@ -687,11 +703,11 @@ async function doScan(type, sug, s) {
   W.busy = true; renderWorker();
   try {
     const gps = CFG.saveGps ? await getGps() : {};
-    const r = await call('submitAttendance', Object.assign({ name: W.name, type, site: W.site }, gps));
+    const r = await call('submitAttendance', Object.assign({ name: W.name, type, site }, gps));
     if (!r.ok) { W.msg = { k: 'warn', t: r.message }; }
     else {
       W.records.push(r.record);
-      store.set('att_site', W.site);
+      if (!open) store.set('att_site', site);
       const colors = { 'IN': 'var(--in)', 'OUT': 'var(--out)', 'OT-IN': 'var(--otin)', 'OT-OUT': 'var(--otout)' };
       const ov = modal('<div class="ov-ic" style="background:' + colors[type] + '">✓</div><h3>' + esc(type) + ' recorded</h3>' +
         '<div class="big tnum">' + esc(r.record.time12) + '</div><div class="muted">' + esc(W.name) + '<br>' + esc(r.record.site) + '</div>' +
